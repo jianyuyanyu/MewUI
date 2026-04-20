@@ -310,7 +310,15 @@ internal sealed class PropertyValueStore
         {
             animated.BaseValue = value;
             if (source.HasValue)
+            {
                 animated.BaseSource = source.Value;
+                // Keep entry.Source aligned with the base source so priority checks
+                // during the animation see the post-animation source. Without this,
+                // a Style-source restoration animation leaves entry.Source at the
+                // prior Trigger value, and a later SetStyle is rejected as lower
+                // priority — pinning the stale animated target.
+                entry.Source = source.Value;
+            }
         }
         else
         {
