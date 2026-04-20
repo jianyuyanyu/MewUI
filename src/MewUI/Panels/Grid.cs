@@ -359,6 +359,9 @@ public class Grid : Panel
     public static readonly MewProperty<bool> ShowGridLineProperty =
         MewProperty<bool>.Register<Grid>(nameof(ShowGridLine), false, MewPropertyOptions.AffectsRender);
 
+    public static readonly MewProperty<bool> ShareStarSizeProperty =
+        MewProperty<bool>.Register<Grid>(nameof(ShareStarSize), false, MewPropertyOptions.AffectsLayout);
+
     private readonly DefinitionCollection<RowDefinition> _rowDefinitions;
     private readonly DefinitionCollection<ColumnDefinition> _columnDefinitions;
     private readonly RowDefinition _implicitRow = new();
@@ -396,6 +399,18 @@ public class Grid : Panel
         set => SetValue(ShowGridLineProperty, value);
     }
 
+    /// <summary>
+    /// When true, all Star columns are sized to max(MeasureSize / weight) * weight,
+    /// and likewise for Star rows. The Grid's desired size grows to accommodate the
+    /// largest star content. (WPF SharedSizeGroup-like behavior, applied to all stars
+    /// on each axis regardless of Horizontal/VerticalAlignment.)
+    /// </summary>
+    public bool ShareStarSize
+    {
+        get => GetValue(ShareStarSizeProperty);
+        set => SetValue(ShareStarSizeProperty, value);
+    }
+
     protected override Size MeasureContent(Size availableSize)
     {
         var rows = GetEffectiveRows();
@@ -405,6 +420,12 @@ public class Grid : Panel
         double spacing = Math.Max(0, Spacing);
 
         MeasureByGroups(placements, rows, columns, paddedSize, spacing);
+
+        if (ShareStarSize)
+        {
+            EqualizeStarMeasureSizes(columns);
+            EqualizeStarMeasureSizes(rows);
+        }
 
         CommitActualSizes(columns, rows, useFinal: false);
 
@@ -725,6 +746,27 @@ public class Grid : Panel
             sizes[i] = definitions[i].MeasureSize;
         }
         return sizes;
+    }
+
+    private static void EqualizeStarMeasureSizes<T>(IReadOnlyList<T> definitions) where T : GridDefinitionBase
+    {
+        double sharedUnit = 0;
+        foreach (var def in definitions)
+        {
+            if (!def.UserSize.IsStar) continue;
+            double weight = Math.Max(0.0001, def.UserSize.Value);
+            double unit = def.MeasureSize / weight;
+            if (unit > sharedUnit) sharedUnit = unit;
+        }
+
+        if (sharedUnit <= 0) return;
+
+        foreach (var def in definitions)
+        {
+            if (!def.UserSize.IsStar) continue;
+            double weight = Math.Max(0.0001, def.UserSize.Value);
+            def.MeasureSize = ClampDefinitionSize(def, sharedUnit * weight);
+        }
     }
 
     private static bool IsStable<T>(double[] before, IReadOnlyList<T> definitions) where T : GridDefinitionBase
