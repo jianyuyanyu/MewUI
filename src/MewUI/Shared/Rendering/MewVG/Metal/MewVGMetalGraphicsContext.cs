@@ -38,10 +38,12 @@ internal sealed partial class MewVGMetalGraphicsContext
 
     private readonly MewVGMetalWindowResources _resources;
 
-    private readonly nint _drawable;
-    private readonly nint _commandBuffer;
-    private readonly nint _encoder;
-    private readonly bool _beganFrame;
+    private readonly nint _metalLayer;
+
+    private nint _drawable;
+    private nint _commandBuffer;
+    private nint _encoder;
+    private bool _beganFrame;
 
     public MewVGMetalGraphicsContext(
         nint hwnd,
@@ -53,16 +55,20 @@ internal sealed partial class MewVGMetalGraphicsContext
     {
         _resources = resources;
         _vg = resources.Vg;
+        _metalLayer = metalLayer;
 
         _dpiScale = dpiScale <= 0 ? 1.0 : dpiScale;
         _viewportWidthPx = Math.Max(1, pixelWidth);
         _viewportHeightPx = Math.Max(1, pixelHeight);
         _viewportWidthDip = _viewportWidthPx / DpiScale;
         _viewportHeightDip = _viewportHeightPx / DpiScale;
+    }
 
+    partial void BeginFramePlatform()
+    {
         using var pool = new AutoReleasePool();
 
-        _drawable = ObjCRuntime.SendMessage(metalLayer, SelNextDrawable);
+        _drawable = ObjCRuntime.SendMessage(_metalLayer, SelNextDrawable);
         if (_drawable == 0)
         {
             // Leave encoder/cmdBuffer null; caller will simply get a no-op frame.
@@ -77,7 +83,7 @@ internal sealed partial class MewVGMetalGraphicsContext
             return;
         }
 
-        _commandBuffer = ObjCRuntime.SendMessage(resources.CommandQueue, SelCommandBuffer);
+        _commandBuffer = ObjCRuntime.SendMessage(_resources.CommandQueue, SelCommandBuffer);
         if (_commandBuffer == 0)
         {
             return;
@@ -85,8 +91,8 @@ internal sealed partial class MewVGMetalGraphicsContext
 
         RetainIfNotNull(_commandBuffer);
 
-        nint stencilTex = resources.EnsureStencilTexture(_viewportWidthPx, _viewportHeightPx);
-        nint msaaColorTex = resources.EnsureMsaaColorTexture(_viewportWidthPx, _viewportHeightPx);
+        nint stencilTex = _resources.EnsureStencilTexture(_viewportWidthPx, _viewportHeightPx);
+        nint msaaColorTex = _resources.EnsureMsaaColorTexture(_viewportWidthPx, _viewportHeightPx);
         nint passDesc = CreateRenderPass(drawableTexture, stencilTex, msaaColorTex);
         if (passDesc == 0)
         {
@@ -108,15 +114,8 @@ internal sealed partial class MewVGMetalGraphicsContext
         _beganFrame = true;
     }
 
-    protected override void OnDispose()
+    partial void EndFramePlatform()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-
         using var pool = new AutoReleasePool();
         bool signalFrameCompleted = _beganFrame;
 
@@ -155,7 +154,18 @@ internal sealed partial class MewVGMetalGraphicsContext
             ReleaseIfNotNull(_encoder);
             ReleaseIfNotNull(_commandBuffer);
             ReleaseIfNotNull(_drawable);
+
+            _encoder = 0;
+            _commandBuffer = 0;
+            _drawable = 0;
+            _beganFrame = false;
         }
+    }
+
+    protected override void OnDispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
     }
 
     private static nint CreateRenderPass(nint drawableTexture, nint stencilTexture, nint msaaColorTexture)

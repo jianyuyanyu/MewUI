@@ -29,7 +29,10 @@ internal sealed partial class MewVGX11GraphicsContext
         _viewportHeightPx = Math.Max(1, pixelHeight);
         _viewportWidthDip = _viewportWidthPx / DpiScale;
         _viewportHeightDip = _viewportHeightPx / DpiScale;
+    }
 
+    partial void BeginFramePlatform()
+    {
         _resources.MakeCurrent(_display);
         GL.Viewport(0, 0, _viewportWidthPx, _viewportHeightPx);
 
@@ -38,19 +41,18 @@ internal sealed partial class MewVGX11GraphicsContext
         _vg.ResetScissor();
     }
 
-    protected override void OnDispose()
+    partial void EndFramePlatform()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-
         _vg.EndFrame();
         _resources.SetSwapInterval(GetSwapInterval());
         _resources.SwapBuffers(_display, _window);
         _resources.ReleaseCurrent();
+    }
+
+    protected override void OnDispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
     }
 
     private static int GetSwapInterval()

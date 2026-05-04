@@ -104,15 +104,11 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
         GdiPlusInterop.EnsureInitialized();
     }
 
-    protected override void OnDispose()
+    protected override void OnEndFrame()
     {
-        if (_disposed)
-        {
-            return;
-        }
+        if (_disposed) return;
 
-        _disposed = true;
-
+        // Surface pool holds per-frame AA scratch buffers; drop them so the next frame starts fresh.
         _surfacePool.Dispose();
 
         if (_graphics != 0)
@@ -121,15 +117,24 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
             _graphics = 0;
         }
 
-        // Double-buffered: blit back buffer to screen
+        // Double-buffered: blit back buffer to screen so the frame is presented.
+        // Without this on a per-frame boundary, draws accumulate into the back buffer
+        // and never reach the window — only the final BitBlt at app shutdown ever shows.
         if (_backBuffer != null)
         {
             Gdi32.BitBlt(_screenDc, 0, 0, _pixelWidth, _pixelHeight,
-                _backBuffer.MemDc, 0, 0, 0x00CC0020); // SRCCOPY 
+                _backBuffer.MemDc, 0, 0, 0x00CC0020); // SRCCOPY
         }
-        CollectionPool<Stack<GraphicsStateSnapshot>>.Return(_states);
 
-        base.Dispose();
+        _states.Clear();
+    }
+
+    protected override void OnDispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        CollectionPool<Stack<GraphicsStateSnapshot>>.Return(_states);
 
         if (_ownsDc && Hdc != 0)
         {

@@ -60,19 +60,52 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
 
         _renderTarget = renderTarget;
         _renderTargetGeneration = renderTargetGeneration;
-        D2D1VTable.BeginDraw((ID2D1RenderTarget*)_renderTarget);
-        // Always use ClearType. On transparent/layered surfaces this may produce minor color fringes
-        // at fully-transparent edges, but text on opaque backgrounds (the common case) benefits
-        // from full subpixel rendering quality.
+
+        // SetTextAntialiasMode is render-target state and survives BeginDraw/EndDraw cycles,
+        // so it stays at construction. BeginDraw/EndDraw move to OnBeginFrame/OnEndFrame so
+        // each frame is properly bracketed (without that pairing nothing presents — D2D only
+        // flushes the back buffer on EndDraw).
         var textAa = D2D1_TEXT_ANTIALIAS_MODE.CLEARTYPE;
         _useClearTypeText = textAa == D2D1_TEXT_ANTIALIAS_MODE.CLEARTYPE;
-        D2D1VTable.SetTextAntialiasMode((ID2D1RenderTarget*)_renderTarget, textAa);
+        if (_renderTarget != 0)
+        {
+            D2D1VTable.SetTextAntialiasMode((ID2D1RenderTarget*)_renderTarget, textAa);
+        }
 
         // Try QI for ID2D1DeviceContext (D2D 1.1, Windows 8+).
         // Required for IGNORE_ALPHA layers (ClearType) and ENABLE_COLOR_FONT (color emoji).
         if (ComHelpers.QueryInterface(_renderTarget, D2D1.IID_ID2D1DeviceContext, out var dc) >= 0 && dc != 0)
         {
             _deviceContext = dc;
+        }
+    }
+
+    protected override void OnBeginFrame(IRenderTarget target)
+    {
+        if (_renderTarget == 0) return;
+
+        _transform = Matrix3x2.Identity;
+        _globalAlpha = 1f;
+        _textPixelSnap = true;
+        _clipBoundsWorld = null;
+        _states.Clear();
+
+        D2D1VTable.BeginDraw((ID2D1RenderTarget*)_renderTarget);
+    }
+
+    protected override void OnEndFrame()
+    {
+        if (_renderTarget == 0) return;
+
+        while (_clipStack.Count > 0) PopClip();
+
+        TextTracker?.Cleanup();
+
+        int hr = D2D1VTable.EndDraw((ID2D1RenderTarget*)_renderTarget);
+        AssertHr(hr, "EndDraw");
+        if (hr == D2DERR_RECREATE_TARGET || hr == D2DERR_WRONG_RESOURCE_DOMAIN)
+        {
+            _onRecreateTarget?.Invoke();
         }
     }
 
@@ -89,34 +122,21 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
     {
         if (_disposed) return;
 
-        try
-        {
-            TextTracker?.Cleanup();
+        // BeginDraw/EndDraw is bracketed per-frame in OnBeginFrame/OnEndFrame.
+        // The base class always calls EndFrame before OnDispose, so by the time we get here
+        // the render target is already in a non-drawing state.
+        foreach (var (_, brush) in _solidBrushes)
+            ComHelpers.Release(brush);
+        _solidBrushes.Clear();
 
-            if (_renderTarget != 0)
-            {
-                while (_clipStack.Count > 0) PopClip();
-                int hr = D2D1VTable.EndDraw((ID2D1RenderTarget*)_renderTarget);
-                AssertHr(hr, "EndDraw");
-                if (hr == D2DERR_RECREATE_TARGET || hr == D2DERR_WRONG_RESOURCE_DOMAIN)
-                    _onRecreateTarget?.Invoke();
-            }
-        }
-        finally
-        {
-            foreach (var (_, brush) in _solidBrushes)
-                ComHelpers.Release(brush);
-            _solidBrushes.Clear();
+        if (_deviceContext != 0)
+            ComHelpers.Release(_deviceContext);
 
-            if (_deviceContext != 0)
-                ComHelpers.Release(_deviceContext);
+        if (_ownsRenderTarget && _renderTarget != 0)
+            ComHelpers.Release(_renderTarget);
 
-            if (_ownsRenderTarget && _renderTarget != 0)
-                ComHelpers.Release(_renderTarget);
-
-            _renderTarget = 0;
-            _disposed = true;
-        }
+        _renderTarget = 0;
+        _disposed = true;
     }
 
     protected override void SaveCore()
