@@ -6,6 +6,7 @@ namespace Aprillz.MewUI.Rendering.MewVG;
 internal sealed class MewVGImage : IImage
 {
     private readonly IPixelBufferSource? _source;
+    private readonly bool _sourceIsPremultiplied;
     private int _sourceVersion = -1;
     private byte[]? _rgbaCache;
     private int _rgbaCacheVersion = -1;
@@ -39,6 +40,7 @@ internal sealed class MewVGImage : IImage
         PixelHeight = source.PixelHeight;
         _source = source;
         _sourceVersion = source.Version;
+        _sourceIsPremultiplied = source.IsPremultiplied;
     }
 
     public int GetOrCreateImageId(NanoVG vg)
@@ -49,6 +51,14 @@ internal sealed class MewVGImage : IImage
         if (_disposed)
         {
             return 0;
+        }
+
+        // Tell NVG the texels are already premultiplied — without this, the shader would
+        // multiply RGB by alpha a second time at sample, dimming every semi-transparent
+        // pixel (visible as a black halo on alpha-blended edges).
+        if (_sourceIsPremultiplied)
+        {
+            flags |= NVGimageFlags.Premultiplied;
         }
 
         int version = _source?.Version ?? 0;

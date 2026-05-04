@@ -169,7 +169,12 @@ internal sealed class Direct2DImage : IImage
                 return;
             }
 
-            _premultiplied = PremultiplyIfNeeded(l.Buffer);
+            // D2D's BGRA8 format requires PREMULTIPLIED alpha mode (STRAIGHT is rejected by
+            // ID2D1RenderTarget::CreateBitmap with WINCODEC_ERR_UNSUPPORTEDPIXELFORMAT). So if
+            // the source is already premultiplied (offscreen RT — the hot path) we use the
+            // buffer directly; only straight-alpha sources (PNG decode, raw bytes) pay the
+            // CPU premultiply cost, and there's no way around it without a GPU effect pass.
+            _premultiplied = _pixels.IsPremultiplied ? l.Buffer : PremultiplyIfNeeded(l.Buffer);
             _mipBuffers.Add(_premultiplied);
         }
 

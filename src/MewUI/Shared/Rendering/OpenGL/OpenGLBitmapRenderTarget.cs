@@ -69,6 +69,10 @@ internal sealed class OpenGLBitmapRenderTarget : IBitmapRenderTarget
 
     internal bool HasStencil => _hasStencil;
 
+    /// <summary>NanoVG renders with SRC_ALPHA / ONE_MINUS_SRC_ALPHA blending into
+    /// the FBO color attachment, producing premultiplied output.</summary>
+    public bool IsPremultiplied => true;
+
     public byte[] CopyPixels()
     {
         if (_disposed)

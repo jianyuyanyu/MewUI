@@ -47,6 +47,39 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
 
     public override ImageScaleQuality ImageScaleQuality { get; set; } = ImageScaleQuality.Default;
 
+    protected override void OnBeginFrame(IRenderTarget target)
+    {
+        _dpiScale = target.DpiScale <= 0 ? 1.0 : target.DpiScale;
+        _viewportWidthPx = Math.Max(1, target.PixelWidth);
+        _viewportHeightPx = Math.Max(1, target.PixelHeight);
+        _viewportWidthDip = _viewportWidthPx / DpiScale;
+        _viewportHeightDip = _viewportHeightPx / DpiScale;
+
+        _globalAlpha = 1f;
+        _textPixelSnap = true;
+        _transform = Matrix3x2.Identity;
+        _clipBoundsWorld = null;
+        _saveStack.Clear();
+
+        BeginFramePlatform();
+    }
+
+    protected override void OnEndFrame()
+    {
+        EndFramePlatform();
+        _saveStack.Clear();
+    }
+
+    /// <summary>
+    /// Platform-specific per-frame initialization (MakeCurrent, GL.Viewport, vg.BeginFrame, etc.).
+    /// </summary>
+    partial void BeginFramePlatform();
+
+    /// <summary>
+    /// Platform-specific per-frame cleanup (vg.EndFrame, swap buffers, release context, etc.).
+    /// </summary>
+    partial void EndFramePlatform();
+
     #region State Management
 
     protected override void SaveCore()
@@ -74,8 +107,6 @@ internal sealed partial class MewVGWin32GraphicsContext : GraphicsContextBase
         var worldClip = TransformRectToWorldAABB(rect);
         _clipBoundsWorld = IntersectClipBounds(_clipBoundsWorld, worldClip);
 
-        // _clipBoundsWorld already holds the cumulative world-space intersection,
-        // so always use Scissor (not IntersectScissor) with identity transform.
         var clip = _clipBoundsWorld.Value;
         _vg.SetTransformMatrix(Matrix3x2.Identity);
         _vg.Scissor((float)clip.X, (float)clip.Y, (float)clip.Width, (float)clip.Height);

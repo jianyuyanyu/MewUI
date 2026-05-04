@@ -26,6 +26,20 @@ public interface IPixelBufferSource
     BitmapPixelFormat PixelFormat { get; }
 
     /// <summary>
+    /// Whether the pixel buffer's RGB channels are already multiplied by alpha.
+    /// Backend image uploads must skip their own premultiply step when true; otherwise
+    /// the data gets premultiplied a second time, darkening every semi-transparent pixel
+    /// (visible as a black halo on alpha-blended edges).
+    /// </summary>
+    /// <remarks>
+    /// Default false to preserve straight-alpha semantics for sources that haven't opted
+    /// in (PNG decode, raw byte arrays, <see cref="WriteableBitmap"/>). Render targets
+    /// that produce premultiplied output (OpenGL/MewVG FBO, GDI DIB written via AlphaBlend)
+    /// override to true.
+    /// </remarks>
+    bool IsPremultiplied => false;
+
+    /// <summary>
     /// Monotonically increasing version. Backends can use this to detect changes.
     /// </summary>
     int Version { get; }

@@ -55,4 +55,5 @@ public sealed partial class MewVGGraphicsFactory
 
     private partial IGraphicsContext CreateMeasurementContextCore(uint dpi)
         => new OpenGLMeasurementContext(dpi);
+
 }

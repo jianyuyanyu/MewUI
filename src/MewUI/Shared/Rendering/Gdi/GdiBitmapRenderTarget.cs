@@ -67,6 +67,14 @@ internal sealed class GdiBitmapRenderTarget : IBitmapRenderTarget
     public int Version => Volatile.Read(ref _version);
 
     /// <summary>
+    /// GDI+ alpha blending (the modern <c>GdiPlusGraphicsContext</c> path) writes
+    /// premultiplied RGBA into the DIB. The legacy GDI ROP-based blitters that
+    /// this target also fronts produce undefined alpha; consumers that care
+    /// about alpha read this back as premultiplied.
+    /// </summary>
+    public bool IsPremultiplied => true;
+
+    /// <summary>
     /// Gets the memory device context for rendering.
     /// </summary>
     internal nint Hdc { get; }

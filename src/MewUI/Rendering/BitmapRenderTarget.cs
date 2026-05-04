@@ -45,5 +45,5 @@ public interface IBitmapRenderTarget : IRenderTarget, IPixelBufferSource, IDispo
     /// Increments the version to signal that pixels have changed.
     /// Call this after modifying pixels via GetPixelSpan() or IGraphicsContext.
     /// </summary>
-    void IncrementVersion();
+    void IncrementVersion();     
 }

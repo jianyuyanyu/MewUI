@@ -60,6 +60,15 @@ internal sealed class Direct2DBitmapRenderTarget : IBitmapRenderTarget, IWin32Hd
     public int StrideBytes => PixelWidth * 4;
     public int Version => Volatile.Read(ref _version);
 
+    /// <summary>
+    /// D2D internally renders premultiplied, but the DC render target's
+    /// readable surface (the GDI DIB section it BindDCs to) ends up with
+    /// straight-alpha bytes after AlphaBlend / GDI passes. Consumers that
+    /// post-process these pixels (e.g. SVG Gaussian blur) treat them as
+    /// straight to avoid double-divide artifacts at semi-transparent edges.
+    /// </summary>
+    public bool IsPremultiplied => false;
+
     nint IWin32HdcSource.Hdc => Hdc;
 
     /// <summary>

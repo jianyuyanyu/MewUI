@@ -207,6 +207,15 @@ public class WriteableBitmapControl : Control
         public Span<byte> PixelsBgra32 => _target.GetPixelSpan();
         public Span<uint> PixelsUInt32 => MemoryMarshal.Cast<byte, uint>(_target.GetPixelSpan());
 
+        /// <summary>
+        /// Whether the underlying buffer expects pre-multiplied BGRA. Backends differ (GDI's
+        /// HBITMAP-backed RT is premultiplied because <c>AlphaBlend</c> demands it; D2D's
+        /// software RT is straight). Direct-pixel writers must respect this — writing straight
+        /// RGBA into a premultiplied RT shows up as bright halos on alpha-soft edges (the
+        /// downstream blit then assumes RGB is already alpha-scaled and skips the divide).
+        /// </summary>
+        public bool IsPremultiplied => _target.IsPremultiplied;
+
         internal WriteContext(WriteableBitmapControl control, IBitmapRenderTarget target)
         {
             _control = control;

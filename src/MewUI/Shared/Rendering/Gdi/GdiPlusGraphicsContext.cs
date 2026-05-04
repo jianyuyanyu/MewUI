@@ -61,7 +61,8 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
     }
 
     internal static GdiPlusGraphicsContext CreateDoubleBuffered(
-        nint hwnd, nint screenDc, double dpiScale, ImageScaleQuality imageScaleQuality)
+        nint hwnd, nint screenDc, double dpiScale, ImageScaleQuality imageScaleQuality,
+        bool transparentComposition = false)
     {
         User32.GetClientRect(hwnd, out var clientRect);
         int width = Math.Max(1, clientRect.Width);
@@ -124,7 +125,7 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
         if (_backBuffer != null)
         {
             Gdi32.BitBlt(_screenDc, 0, 0, _pixelWidth, _pixelHeight,
-                _backBuffer.MemDc, 0, 0, 0x00CC0020); // SRCCOPY
+                _backBuffer.MemDc, 0, 0, 0x00CC0020); // SRCCOPY 
         }
         CollectionPool<Stack<GraphicsStateSnapshot>>.Return(_states);
 

@@ -508,11 +508,12 @@ internal sealed class ColorPickerPopup : Control, IVisualTreeHost
             var pixels = wctx.PixelsUInt32;
             int w = wctx.PixelWidth;
             int h = wctx.PixelHeight;
+            bool premultiplied = wctx.IsPremultiplied;
 
             if (_hueRingDirty)
             {
                 wctx.Clear(Color.Transparent);
-                GenerateHueRing(pixels, w, h);
+                GenerateHueRing(pixels, w, h, premultiplied);
                 _hueRingDirty = false;
             }
             else
@@ -520,7 +521,7 @@ internal sealed class ColorPickerPopup : Control, IVisualTreeHost
                 ClearInnerCircle(pixels, w, h);
             }
 
-            GenerateTriangle(pixels, w, h);
+            GenerateTriangle(pixels, w, h, premultiplied);
             _triangleDirty = false;
             _lastRenderedHue = _state.H;
         }
@@ -542,7 +543,7 @@ internal sealed class ColorPickerPopup : Control, IVisualTreeHost
             }
         }
 
-        private void GenerateHueRing(Span<uint> pixels, int w, int h)
+        private void GenerateHueRing(Span<uint> pixels, int w, int h, bool premultiplied)
         {
             int minY = Math.Max(0, (int)(_cy - _outerR) - 1);
             int maxY = Math.Min(h - 1, (int)(_cy + _outerR) + 1);
@@ -583,12 +584,12 @@ internal sealed class ColorPickerPopup : Control, IVisualTreeHost
 
                     var c = HsvColor.HueToRgb(hue);
                     byte a = (byte)(alpha * 255f);
-                    pixels[offset + px] = PackBgra(c.R, c.G, c.B, a);
+                    pixels[offset + px] = premultiplied ? PackPremulBgra(c.R, c.G, c.B, a) : PackBgra(c.R, c.G, c.B, a);
                 }
             }
         }
 
-        private void GenerateTriangle(Span<uint> pixels, int w, int h)
+        private void GenerateTriangle(Span<uint> pixels, int w, int h, bool premultiplied)
         {
             float hueRad = _state.H / 180f * MathF.PI;
             GetTriangleVertices(hueRad, out float x0, out float y0, out float x1, out float y1, out float x2, out float y2);
@@ -646,11 +647,12 @@ internal sealed class ColorPickerPopup : Control, IVisualTreeHost
                     if (minDist < 1f)
                         alpha = (byte)Math.Clamp((minDist + 1f) * 0.5f * 255f, 0f, 255f);
 
-                    pixels[offset + px] = PackBgra(
-                        (byte)Math.Clamp(r, 0f, 255f),
-                        (byte)Math.Clamp(g, 0f, 255f),
-                        (byte)Math.Clamp(b, 0f, 255f),
-                        alpha);
+                    byte rb = (byte)Math.Clamp(r, 0f, 255f);
+                    byte gb = (byte)Math.Clamp(g, 0f, 255f);
+                    byte bb = (byte)Math.Clamp(b, 0f, 255f);
+                    pixels[offset + px] = premultiplied
+                        ? PackPremulBgra(rb, gb, bb, alpha)
+                        : PackBgra(rb, gb, bb, alpha);
                 }
             }
         }
@@ -858,6 +860,21 @@ internal sealed class ColorPickerPopup : Control, IVisualTreeHost
 
         private static uint PackBgra(byte r, byte g, byte b, byte a)
             => (uint)(b | (g << 8) | (r << 16) | (a << 24));
+
+        // GDI's HBITMAP-backed RT reports IsPremultiplied=true so its downstream AlphaBlend
+        // path skips the premultiply step. Direct pixel writers must therefore feed it RGB
+        // already scaled by alpha — otherwise low-alpha edges (the AA-soft circle/triangle
+        // boundaries here) bleed in at full RGB intensity, producing the bright fringe we
+        // saw around the SV-triangle apex on the GDI backend.
+        private static uint PackPremulBgra(byte r, byte g, byte b, byte a)
+        {
+            if (a == 0xFF) return PackBgra(r, g, b, a);
+            if (a == 0) return 0;
+            byte pr = (byte)((r * a + 127) / 255);
+            byte pg = (byte)((g * a + 127) / 255);
+            byte pb = (byte)((b * a + 127) / 255);
+            return (uint)(pb | (pg << 8) | (pr << 16) | (a << 24));
+        }
     }
 
     /// <summary>

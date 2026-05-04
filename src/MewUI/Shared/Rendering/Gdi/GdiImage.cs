@@ -114,7 +114,7 @@ internal sealed class GdiImage : IImage
                 return;
             }
 
-            CopyToDibPremultiplied(l.Buffer);
+            CopyToDibPremultiplied(l.Buffer, sourceIsPremultiplied: _source.IsPremultiplied);
             _sourceVersion = v;
 
             if (_gpBitmap != 0)
@@ -811,7 +811,7 @@ internal sealed class GdiImage : IImage
         }
     }
 
-    private void CopyToDibPremultiplied(ReadOnlySpan<byte> pixelData)
+    private void CopyToDibPremultiplied(ReadOnlySpan<byte> pixelData, bool sourceIsPremultiplied = false)
     {
         if (_bits == 0 || pixelData.IsEmpty)
         {
@@ -824,13 +824,18 @@ internal sealed class GdiImage : IImage
         }
 
         // GDI AlphaBlend expects the source to be premultiplied alpha (AC_SRC_ALPHA).
+        // Only premultiply if the source isn't already in that form — otherwise we'd
+        // double-multiply RGB by alpha, dimming every semi-transparent pixel.
         bool needsPremultiply = false;
-        for (int i = 3; i < pixelData.Length; i += 4)
+        if (!sourceIsPremultiplied)
         {
-            if (pixelData[i] != 0xFF)
+            for (int i = 3; i < pixelData.Length; i += 4)
             {
-                needsPremultiply = true;
-                break;
+                if (pixelData[i] != 0xFF)
+                {
+                    needsPremultiply = true;
+                    break;
+                }
             }
         }
 

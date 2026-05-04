@@ -6,6 +6,13 @@ namespace Aprillz.MewUI.Platform.Win32;
 public interface IWin32WindowSurface : IWindowSurface
 {
     nint Hwnd { get; }
+
+    /// <summary>
+    /// Indicates the surface requires an alpha channel for transparent composition
+    /// (e.g., system backdrop effects). Graphics backends should use premultiplied alpha
+    /// rendering and alpha-preserving presentation when this is <see langword="true"/>.
+    /// </summary>
+    bool TransparentComposition => false;
 }
 
 /// <summary>
