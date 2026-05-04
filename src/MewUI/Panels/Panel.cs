@@ -166,6 +166,13 @@ public abstract class Panel : FrameworkElement
 
     protected override UIElement? OnHitTest(Point point)
     {
+        // Subtree cull. Children are arranged within this panel's layout slot, so a point
+        // outside Bounds can hit neither us nor any child.
+        if (!Bounds.Contains(point))
+        {
+            return null;
+        }
+
         if (!IsVisible || !IsHitTestVisible || !IsEffectivelyEnabled)
         {
             return null;
@@ -184,13 +191,8 @@ public abstract class Panel : FrameworkElement
             }
         }
 
-        // Then check self
-        if (Bounds.Contains(point))
-        {
-            return this;
-        }
-
-        return null;
+        // Self-hit (point is in Bounds — verified above).
+        return this;
     }
 
     bool IVisualTreeHost.VisitChildren(Func<Element, bool> visitor)
