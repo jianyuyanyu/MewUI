@@ -1,6 +1,11 @@
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using Aprillz.MewUI.Native.FreeType;
+using FT = Aprillz.MewUI.Native.FreeType.FreeType;
+
 namespace Aprillz.MewUI.Rendering.FreeType;
 
-internal sealed class FreeTypeFont : FontBase
+internal sealed class FreeTypeFont : FontBase, IGlyphOutlineFont
 {
     public string FontPath { get; }
     public int PixelHeight { get; }
@@ -35,5 +40,121 @@ internal sealed class FreeTypeFont : FontBase
             Descent = size * 0.25;
         }
     }
-}
 
+    public unsafe bool TryAppendGlyphOutline(PathGeometry path, char ch, Point baselineOrigin, out double advance)
+    {
+        advance = 0;
+        if (path is null || string.IsNullOrWhiteSpace(FontPath) || PixelHeight <= 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            var face = FreeTypeFaceCache.Instance.Get(FontPath, PixelHeight, Weight, IsItalic);
+            lock (face.SyncRoot)
+            {
+                int flags = FreeTypeLoad.FT_LOAD_DEFAULT | FreeTypeLoad.FT_LOAD_NO_BITMAP;
+                if (FT.FT_Load_Char(face.Face, ch, flags) != 0)
+                {
+                    return false;
+                }
+
+                var slotPtr = face.GetGlyphSlotPointer();
+                if (slotPtr == 0)
+                {
+                    return false;
+                }
+
+                var slot = (FT_GlyphSlotRec*)slotPtr;
+                if (slot->outline.n_contours <= 0 || slot->outline.points == null)
+                {
+                    return false;
+                }
+
+                double dipScale = Size / PixelHeight;
+                advance = face.GetAdvancePx(ch) * dipScale;
+
+                // baselineOrigin is the actual baseline (per IGlyphOutlineFont contract).
+                // FreeType outlines are baseline-relative (Y up from baseline), so map by
+                // negating Y onto SVG's top-down screen coords with no extra ascent shift.
+                var state = new OutlineState(path, baselineOrigin, dipScale);
+                var handle = GCHandle.Alloc(state);
+                try
+                {
+                    var funcs = new FT_Outline_Funcs
+                    {
+                        move_to = &MoveToCallback,
+                        line_to = &LineToCallback,
+                        conic_to = &ConicToCallback,
+                        cubic_to = &CubicToCallback,
+                        shift = 0,
+                        delta = 0
+                    };
+
+                    int err = FT.FT_Outline_Decompose(&slot->outline, &funcs, GCHandle.ToIntPtr(handle));
+                    return err == 0;
+                }
+                finally
+                {
+                    handle.Free();
+                }
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static unsafe int MoveToCallback(FT_Vector* to, nint user)
+    {
+        var state = GetState(user);
+        state.Path.MoveTo(state.ToWorldX((long)to->x), state.ToWorldY((long)to->y));
+        return 0;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static unsafe int LineToCallback(FT_Vector* to, nint user)
+    {
+        var state = GetState(user);
+        state.Path.LineTo(state.ToWorldX((long)to->x), state.ToWorldY((long)to->y));
+        return 0;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static unsafe int ConicToCallback(FT_Vector* control, FT_Vector* to, nint user)
+    {
+        var state = GetState(user);
+        state.Path.QuadTo(
+            state.ToWorldX((long)control->x), state.ToWorldY((long)control->y),
+            state.ToWorldX((long)to->x), state.ToWorldY((long)to->y));
+        return 0;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static unsafe int CubicToCallback(FT_Vector* control1, FT_Vector* control2, FT_Vector* to, nint user)
+    {
+        var state = GetState(user);
+        state.Path.BezierTo(
+            state.ToWorldX((long)control1->x), state.ToWorldY((long)control1->y),
+            state.ToWorldX((long)control2->x), state.ToWorldY((long)control2->y),
+            state.ToWorldX((long)to->x), state.ToWorldY((long)to->y));
+        return 0;
+    }
+
+    private static OutlineState GetState(nint user)
+        => (OutlineState)GCHandle.FromIntPtr(user).Target!;
+
+    private sealed class OutlineState(PathGeometry path, Point baselineOrigin, double dipScale)
+    {
+        public PathGeometry Path { get; } = path;
+
+        public double ToWorldX(long x26_6) => baselineOrigin.X + ((x26_6 / 64.0) * dipScale);
+
+        // FreeType y is baseline-relative (positive = above baseline). SVG screen coords
+        // are top-down (positive = below baseline), so subtract from baseline world y.
+        public double ToWorldY(long y26_6) => baselineOrigin.Y - ((y26_6 / 64.0) * dipScale);
+    }
+}

@@ -1,10 +1,11 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 using Aprillz.MewUI.Resources;
 
 namespace Aprillz.MewUI.Rendering.CoreText;
 
-internal sealed unsafe partial class CoreTextFont : FontBase
+internal sealed unsafe partial class CoreTextFont : FontBase, IGlyphOutlineFont
 {
     private const int kCFNumberFloat64Type = 13;
 
@@ -12,6 +13,11 @@ internal sealed unsafe partial class CoreTextFont : FontBase
     private readonly uint _createdDpi;
     private readonly Dictionary<uint, nint> _dpiFontRefs = new();
     private readonly object _gate = new();
+    /// <summary>True when bold weight was requested but the font's actual face has no bold
+    /// trait (CoreText doesn't synthesize bold like GDI / DirectWrite / FreeType do). When
+    /// set, glyph outline emission also appends a stroked copy of the path to thicken the
+    /// rendered shape — Apple's recommended path-based fake-bold technique.</summary>
+    private readonly bool _synthesizeBold;
 
     public CoreTextFont(
         string family,
@@ -21,11 +27,13 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         bool underline,
         bool strikethrough,
         nint fontRef,
-        uint createdDpi)
+        uint createdDpi,
+        bool synthesizeBold = false)
         : base(family, size, weight, italic, underline, strikethrough)
     {
         FontRef = fontRef;
         _createdDpi = createdDpi == 0 ? 96u : createdDpi;
+        _synthesizeBold = synthesizeBold;
         if (fontRef != 0)
         {
             _dpiFontRefs[_createdDpi] = fontRef;
@@ -93,8 +101,17 @@ internal sealed unsafe partial class CoreTextFont : FontBase
                 throw new InvalidOperationException("CTFontCreateWithName failed.");
             }
 
+            // Detect bold-synthesis need: bold-class weight requested but the resulting
+            // font's symbolic traits don't have kCTFontTraitBold set — the family lacks a
+            // bold face on this system. CoreText (unlike GDI/DirectWrite/FreeType) doesn't
+            // auto-thicken; the fake-bold path-stroke pass in TryAppendGlyphOutline picks
+            // up this flag.
+            bool wantBold = (int)weight >= (int)FontWeight.SemiBold;
+            bool hasBoldTrait = (CoreText.CTFontGetSymbolicTraits(font) & kCTFontTraitBold) != 0;
+            bool synthesizeBold = wantBold && !hasBoldTrait;
+
             // Keep the public Size as the DIP size for layout/measurement consistency.
-            return new CoreTextFont(family, size, weight, italic, underline, strikethrough, font, actualDpi);
+            return new CoreTextFont(family, size, weight, italic, underline, strikethrough, font, actualDpi, synthesizeBold);
         }
         finally
         {
@@ -119,7 +136,7 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         _ => 0.0
     };
 
-    private static nint CreateStyledCTFont(nint cfFamilyName, double sizePx, FontWeight weight, bool italic)
+    private static unsafe nint CreateStyledCTFont(nint cfFamilyName, double sizePx, FontWeight weight, bool italic)
     {
         nint baseFont = CoreText.CTFontCreateWithName(cfFamilyName, sizePx, 0);
         if (baseFont == 0)
@@ -135,13 +152,39 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         // Apply weight/slant traits to the existing font via CTFontCreateCopyWithAttributes.
         // This works for system fonts (.AppleSystemUIFont) where descriptor-based family lookup fails.
         nint styled = TryCopyWithTraits(baseFont, sizePx, weight, italic);
-        if (styled != 0)
+        nint chosen = styled != 0 ? styled : baseFont;
+
+        // CoreText doesn't synthesize italic — if the font family has no italic face,
+        // CTFontCreateCopyWithAttributes returns a copy without the italic trait set
+        // (silently). GDI / DirectWrite / FreeType all auto-skew when an italic face is
+        // missing; mirror that here by recreating the font with an X-shear matrix when
+        // italic was requested but the result lacks the kCTFontTraitItalic bit.
+        if (italic && (CoreText.CTFontGetSymbolicTraits(chosen) & kCTFontTraitItalic) == 0)
         {
-            CoreFoundation.CFRelease(baseFont);
-            return styled;
+            // ~12° forward slant — matches GDI/DirectWrite synthesized oblique. The matrix is
+            // {a=1, b=0, c=tan(12°), d=1, tx=0, ty=0}: shears X by tan(12°) per unit Y, so
+            // a glyph at (x, y) renders at (x + y·tan(12°), y) — visual oblique.
+            var skew = new CGAffineTransform { a = 1.0, b = 0.0, c = 0.21255656167002213, d = 1.0, tx = 0.0, ty = 0.0 };
+            nint skewedRegular = CoreText.CTFontCreateWithNameAndMatrix(cfFamilyName, sizePx, &skew);
+            if (skewedRegular != 0)
+            {
+                // Re-apply weight on top of the skewed font. CTFontCreateCopyWithAttributes
+                // preserves the source font's matrix when its matrix parameter is null —
+                // so the shear from skewedRegular carries through to the weight-applied copy.
+                nint skewedWeighted = TryCopyWithTraits(skewedRegular, sizePx, weight, italic: false);
+                nint finalFont = skewedWeighted != 0 ? skewedWeighted : skewedRegular;
+                if (skewedWeighted != 0) CoreFoundation.CFRelease(skewedRegular);
+                if (chosen != baseFont) CoreFoundation.CFRelease(chosen);
+                CoreFoundation.CFRelease(baseFont);
+                return finalFont;
+            }
         }
 
-        return baseFont;
+        if (chosen != baseFont)
+        {
+            CoreFoundation.CFRelease(baseFont);
+        }
+        return chosen;
     }
 
     private static nint TryCopyWithTraits(nint baseFont, double sizePx, FontWeight weight, bool italic)
@@ -449,12 +492,38 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
         internal static partial nint CTFontCreateWithName(nint name, double size, nint matrix);
 
+        [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText", EntryPoint = "CTFontCreateWithName")]
+        internal static partial nint CTFontCreateWithNameAndMatrix(nint name, double size, CGAffineTransform* matrix);
+
         [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
         internal static partial nint CTFontDescriptorCreateWithAttributes(nint attributes);
 
         [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
         internal static partial nint CTFontCreateCopyWithAttributes(nint font, double size, nint matrix, nint attributes);
+
+        [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
+        internal static partial uint CTFontGetSymbolicTraits(nint font);
     }
+
+    /// <summary>CGAffineTransform layout: <c>{ a, b, c, d, tx, ty }</c> as 6 CGFloats (double on 64-bit).
+    /// Used as the matrix parameter for CTFont creation calls — a non-identity matrix lets CoreText apply
+    /// affine transforms (e.g. X-shear for synthesized italic) to all glyph rendering and metrics.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    private struct CGAffineTransform
+    {
+        public double a;
+        public double b;
+        public double c;
+        public double d;
+        public double tx;
+        public double ty;
+    }
+
+    /// <summary>kCTFontTraitItalic bit in CTFontSymbolicTraits — set when the font has an italic face.</summary>
+    private const uint kCTFontTraitItalic = 1u;
+
+    /// <summary>kCTFontTraitBold bit in CTFontSymbolicTraits — set when the font has a bold face.</summary>
+    private const uint kCTFontTraitBold = 2u;
 
     private static partial class CoreTextNative
     {
@@ -471,7 +540,212 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         internal static partial double CTFontGetCapHeight(nint font);
 
         [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
+        [return: MarshalAs(UnmanagedType.I1)]
+        internal static unsafe partial bool CTFontGetGlyphsForCharacters(nint font, char* characters, ushort* glyphs, nuint count);
+
+        [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
+        internal static partial nint CTFontCreatePathForGlyph(nint font, ushort glyph, nint matrix);
+
+        [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static partial bool CTFontManagerRegisterFontsForURL(nint fontURL, int scope, nint errors);
+    }
+
+    public unsafe bool TryAppendGlyphOutline(PathGeometry path, char ch, Point baselineOrigin, out double advance)
+    {
+        advance = 0;
+        // Mirror FreeType: load the font at the renderer DPI so glyph coords come back in
+        // render-DPI pixels, then scale by 96/dpi to land in DIP space at the user's Size.
+        nint font = GetFontRef(_createdDpi);
+        if (path is null || font == 0)
+        {
+            return false;
+        }
+
+        ushort glyph = 0;
+        if (!CoreTextNative.CTFontGetGlyphsForCharacters(font, &ch, &glyph, 1) || glyph == 0)
+        {
+            return false;
+        }
+
+        nint cgPath = CoreGraphics.CGPathCreateMutable();
+        nint glyphPath = 0;
+        try
+        {
+            glyphPath = CoreTextNative.CTFontCreatePathForGlyph(font, glyph, 0);
+            if (glyphPath == 0)
+            {
+                return false;
+            }
+
+            double dipScale = 96.0 / _createdDpi;
+            double advanceWidth = CoreGraphics.CTFontAdvance(font, glyph);
+            advance = advanceWidth * dipScale;
+
+            var state = new GlyphPathState(path, baselineOrigin, dipScale);
+            var handle = GCHandle.Alloc(state);
+            nint strokedPath = 0;
+            try
+            {
+                CoreGraphics.CGPathApply(glyphPath, GCHandle.ToIntPtr(handle), &ApplyPathElement);
+
+                if (_synthesizeBold)
+                {
+                    // Apple's recommended fake-bold: stroke the glyph outline at ~4% of font
+                    // size, then fill BOTH original and stroked-outline paths together. The
+                    // stroked outline is itself a closed path tracing the stroke envelope —
+                    // filling it produces a thin "halo" around the original glyph that fuses
+                    // visually into a thicker shape. Stroke width is in font/raw units (same
+                    // coordinate space as the glyph path returned by CTFontCreatePathForGlyph),
+                    // so we scale Size by createdDpi/96 to land in pixel-design units.
+                    double strokeWidthRaw = (Size * (_createdDpi / 96.0)) * 0.04;
+                    // Butt caps + miter joins so the stroked outline preserves the original
+                    // glyph's sharp corners and pointed tips (e.g. tops of A/V/W). Round
+                    // caps/joins blunt those features and make the bold-synthesized glyph
+                    // look soft / mushy — matches what GDI's bold-synthesis-by-overstrike
+                    // and FreeType's emboldener avoid.
+                    strokedPath = CoreGraphics.CGPathCreateCopyByStrokingPath(
+                        glyphPath, transform: 0, strokeWidthRaw,
+                        lineCap: 0 /* kCGLineCapButt */,
+                        lineJoin: 0 /* kCGLineJoinMiter */,
+                        miterLimit: 10.0);
+                    if (strokedPath != 0)
+                    {
+                        CoreGraphics.CGPathApply(strokedPath, GCHandle.ToIntPtr(handle), &ApplyPathElement);
+                    }
+                }
+
+                return !path.IsEmpty;
+            }
+            finally
+            {
+                handle.Free();
+                if (strokedPath != 0)
+                {
+                    CoreGraphics.CGPathRelease(strokedPath);
+                }
+            }
+        }
+        finally
+        {
+            if (glyphPath != 0)
+            {
+                CoreGraphics.CGPathRelease(glyphPath);
+            }
+
+            if (cgPath != 0)
+            {
+                CoreGraphics.CGPathRelease(cgPath);
+            }
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static unsafe void ApplyPathElement(nint info, CGPathElement* element)
+    {
+        var state = (GlyphPathState)GCHandle.FromIntPtr(info).Target!;
+        var points = element->points;
+
+        switch (element->type)
+        {
+            case CGPathElementType.MoveToPoint:
+                state.Path.MoveTo(state.ToWorldX(points[0].x), state.ToWorldY(points[0].y));
+                break;
+
+            case CGPathElementType.AddLineToPoint:
+                state.Path.LineTo(state.ToWorldX(points[0].x), state.ToWorldY(points[0].y));
+                break;
+
+            case CGPathElementType.AddQuadCurveToPoint:
+                state.Path.QuadTo(
+                    state.ToWorldX(points[0].x), state.ToWorldY(points[0].y),
+                    state.ToWorldX(points[1].x), state.ToWorldY(points[1].y));
+                break;
+
+            case CGPathElementType.AddCurveToPoint:
+                state.Path.BezierTo(
+                    state.ToWorldX(points[0].x), state.ToWorldY(points[0].y),
+                    state.ToWorldX(points[1].x), state.ToWorldY(points[1].y),
+                    state.ToWorldX(points[2].x), state.ToWorldY(points[2].y));
+                break;
+
+            case CGPathElementType.CloseSubpath:
+                state.Path.Close();
+                break;
+        }
+    }
+
+    private sealed class GlyphPathState(PathGeometry path, Point baselineOrigin, double scale)
+    {
+        public PathGeometry Path { get; } = path;
+        public double ToWorldX(double x) => baselineOrigin.X + (x * scale);
+        public double ToWorldY(double y) => baselineOrigin.Y - (y * scale);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct CGPoint
+    {
+        public readonly double x;
+        public readonly double y;
+    }
+
+    private enum CGPathElementType : int
+    {
+        MoveToPoint = 0,
+        AddLineToPoint = 1,
+        AddQuadCurveToPoint = 2,
+        AddCurveToPoint = 3,
+        CloseSubpath = 4
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private unsafe struct CGPathElement
+    {
+        public CGPathElementType type;
+        public CGPoint* points;
+    }
+
+    private static unsafe partial class CoreGraphics
+    {
+        [LibraryImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+        internal static partial nint CGPathCreateMutable();
+
+        [LibraryImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+        internal static partial void CGPathRelease(nint path);
+
+        [LibraryImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+        internal static unsafe partial void CGPathApply(nint path, nint info, delegate* unmanaged[Cdecl]<nint, CGPathElement*, void> function);
+
+        /// <summary>
+        /// CGPathCreateCopyByStrokingPath — returns a new path that traces the OUTLINE of
+        /// stroking the source with the given line width / cap / join. Filling that outline
+        /// produces a "halo" around the original glyph; appending it alongside the original
+        /// fills both regions, effectively thickening the glyph (Apple's recommended fake-bold
+        /// path-expansion technique when the font lacks a real bold face).
+        /// </summary>
+        [LibraryImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+        internal static partial nint CGPathCreateCopyByStrokingPath(
+            nint path, nint transform, double lineWidth,
+            int lineCap, int lineJoin, double miterLimit);
+
+        internal static unsafe double CTFontAdvance(nint font, ushort glyph)
+        {
+            CGSize advance = default;
+            CoreTextMeasure.CTFontGetAdvancesForGlyphs(font, 0, &glyph, &advance, 1);
+            return advance.width;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct CGSize
+    {
+        public readonly double width;
+        public readonly double height;
+    }
+
+    private static unsafe partial class CoreTextMeasure
+    {
+        [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
+        internal static partial double CTFontGetAdvancesForGlyphs(nint font, int orientation, ushort* glyphs, CGSize* advances, nuint count);
     }
 }
