@@ -8,6 +8,8 @@ internal static class GdiConstants
     // Background modes
     public const int TRANSPARENT = 1;
     public const int OPAQUE = 2;
+    public const int GM_COMPATIBLE = 1;
+    public const int GM_ADVANCED = 2;
 
     // Stock objects
     public const int WHITE_BRUSH = 0;
@@ -207,6 +209,14 @@ internal static class GdiConstants
     public const uint ANTIALIASED_QUALITY = 4;
     public const uint CLEARTYPE_QUALITY = 5;
     public const uint CLEARTYPE_NATURAL_QUALITY = 6;
+
+    // Glyph outline
+    public const uint GGO_NATIVE = 2;
+    public const uint GGO_BEZIER = 3;
+    public const uint GGO_UNHINTED = 0x100; // OR with format — disables grid-fit hinting
+    public const ushort TT_PRIM_LINE = 1;
+    public const ushort TT_PRIM_QSPLINE = 2;
+    public const ushort TT_PRIM_CSPLINE = 3;
 
     // Font pitch
     public const uint DEFAULT_PITCH = 0;

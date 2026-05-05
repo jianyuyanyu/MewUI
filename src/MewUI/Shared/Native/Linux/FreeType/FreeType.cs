@@ -31,6 +31,9 @@ internal static partial class FreeType
     public static partial int FT_Load_Glyph(nint face, uint glyph_index, int load_flags);
 
     [LibraryImport(LibraryName)]
+    public static unsafe partial int FT_Outline_Decompose(FT_Outline* outline, FT_Outline_Funcs* funcs, nint user);
+
+    [LibraryImport(LibraryName)]
     public static partial uint FT_Get_Char_Index(nint face, uint charcode);
 
     [LibraryImport(LibraryName)]
@@ -73,6 +76,7 @@ internal static class FreeTypeLoad
 {
     public const int FT_LOAD_DEFAULT = 0x0;
     public const int FT_LOAD_RENDER = 0x4;
+    public const int FT_LOAD_NO_BITMAP = 0x8;
     public const int FT_LOAD_TARGET_NORMAL = 0x0;
     // FT_LOAD_TARGET_XXX flags are (FT_Render_Mode_XXX << 16).
     // See FreeType: FT_LOAD_TARGET( x ) macro.
@@ -162,6 +166,7 @@ internal unsafe struct FT_GlyphSlotRec
     public FT_Bitmap bitmap;
     public int bitmap_left;
     public int bitmap_top;
+    public FT_Outline outline;
 }
 
 /// <summary>FT_Bitmap_Size — metrics for a fixed-size bitmap strike.</summary>
@@ -211,6 +216,28 @@ internal struct FT_BBox
     public nint yMin;
     public nint xMax;
     public nint yMax;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct FT_Outline
+{
+    public short n_contours;
+    public short n_points;
+    public FT_Vector* points;
+    public byte* tags;
+    public short* contours;
+    public int flags;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct FT_Outline_Funcs
+{
+    public delegate* unmanaged[Cdecl]<FT_Vector*, nint, int> move_to;
+    public delegate* unmanaged[Cdecl]<FT_Vector*, nint, int> line_to;
+    public delegate* unmanaged[Cdecl]<FT_Vector*, FT_Vector*, nint, int> conic_to;
+    public delegate* unmanaged[Cdecl]<FT_Vector*, FT_Vector*, FT_Vector*, nint, int> cubic_to;
+    public int shift;
+    public nint delta;
 }
 
 /// <summary>FT_Size_Metrics — scaled font metrics from FT_Size.</summary>

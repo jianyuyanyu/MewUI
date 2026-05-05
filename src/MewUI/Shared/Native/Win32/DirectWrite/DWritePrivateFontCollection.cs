@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+
 using Aprillz.MewUI.Native.Com;
 
 namespace Aprillz.MewUI.Native.DirectWrite;
@@ -24,19 +25,21 @@ internal static unsafe class DWritePrivateFontCollection
         new(0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
 
     // Registered font files: key (collectionKey bytes) → list of file paths
-    private static readonly ConcurrentDictionary<int, string[]> s_registeredFiles = new();
-    private static int s_nextKey = 1;
-
-    // Prevent GC of the loader's vtable and delegate pointers
-    private static nint s_loaderInstance;
-    private static nint s_loaderVtbl;
-    private static bool s_loaderRegistered;
+    private static readonly ConcurrentDictionary<int, string[]> _registeredFiles = new();
 
     // Pin delegates to prevent GC
-    private static readonly delegate* unmanaged[Stdcall]<nint, Guid*, nint*, int> s_queryInterface = &LoaderQueryInterface;
-    private static readonly delegate* unmanaged[Stdcall]<nint, uint> s_addRef = &LoaderAddRef;
-    private static readonly delegate* unmanaged[Stdcall]<nint, uint> s_release = &LoaderRelease;
-    private static readonly delegate* unmanaged[Stdcall]<nint, nint, void*, uint, nint*, int> s_createEnumerator = &LoaderCreateEnumerator;
+    private static readonly delegate* unmanaged[Stdcall]<nint, Guid*, nint*, int> _queryInterface = &LoaderQueryInterface;
+
+    private static readonly delegate* unmanaged[Stdcall]<nint, uint> _addRef = &LoaderAddRef;
+    private static readonly delegate* unmanaged[Stdcall]<nint, uint> _release = &LoaderRelease;
+    private static readonly delegate* unmanaged[Stdcall]<nint, nint, void*, uint, nint*, int> _createEnumerator = &LoaderCreateEnumerator;
+    private static int _nextKey = 1;
+
+    // Prevent GC of the loader's vtable and delegate pointers
+    private static nint _loaderInstance;
+
+    private static nint _loaderVtbl;
+    private static bool _loaderRegistered;
 
     /// <summary>
     /// Creates a DWrite custom font collection containing the specified font files.
@@ -49,8 +52,8 @@ internal static unsafe class DWritePrivateFontCollection
         EnsureLoaderRegistered(factory);
 
         // Assign a unique key for this set of files
-        int key = Interlocked.Increment(ref s_nextKey);
-        s_registeredFiles[key] = fontFilePaths;
+        int key = Interlocked.Increment(ref _nextKey);
+        _registeredFiles[key] = fontFilePaths;
 
         try
         {
@@ -58,7 +61,7 @@ internal static unsafe class DWritePrivateFontCollection
             // HRESULT CreateCustomFontCollection(IDWriteFontCollectionLoader*, void* collectionKey, UINT32 keySize, IDWriteFontCollection**)
             var fn = (delegate* unmanaged[Stdcall]<IDWriteFactory*, nint, void*, uint, nint*, int>)factory->lpVtbl[4];
             nint collection = 0;
-            int hr = fn(factory, s_loaderInstance, &key, (uint)sizeof(int), &collection);
+            int hr = fn(factory, _loaderInstance, &key, (uint)sizeof(int), &collection);
             return hr >= 0 ? collection : 0;
         }
         finally
@@ -70,29 +73,29 @@ internal static unsafe class DWritePrivateFontCollection
     /// <summary>
     /// Removes a key from the registered files. Call when the collection is released.
     /// </summary>
-    public static void RemoveKey(int key) => s_registeredFiles.TryRemove(key, out _);
+    public static void RemoveKey(int key) => _registeredFiles.TryRemove(key, out _);
 
     private static void EnsureLoaderRegistered(IDWriteFactory* factory)
     {
-        if (s_loaderRegistered) return;
+        if (_loaderRegistered) return;
 
         // Build vtable: [QueryInterface, AddRef, Release, CreateEnumeratorFromKey]
         var vtbl = (nint*)NativeMemory.AllocZeroed(4, (nuint)sizeof(nint));
-        vtbl[0] = (nint)s_queryInterface;
-        vtbl[1] = (nint)s_addRef;
-        vtbl[2] = (nint)s_release;
-        vtbl[3] = (nint)s_createEnumerator;
-        s_loaderVtbl = (nint)vtbl;
+        vtbl[0] = (nint)_queryInterface;
+        vtbl[1] = (nint)_addRef;
+        vtbl[2] = (nint)_release;
+        vtbl[3] = (nint)_createEnumerator;
+        _loaderVtbl = (nint)vtbl;
 
         // Loader instance: just a pointer to the vtable pointer
         var instance = (nint*)NativeMemory.AllocZeroed(1, (nuint)sizeof(nint));
         *instance = (nint)vtbl;
-        s_loaderInstance = (nint)instance;
+        _loaderInstance = (nint)instance;
 
         // IDWriteFactory::RegisterFontCollectionLoader (vtable index 5)
         var regFn = (delegate* unmanaged[Stdcall]<IDWriteFactory*, nint, int>)factory->lpVtbl[5];
-        int hr = regFn(factory, s_loaderInstance);
-        s_loaderRegistered = hr >= 0;
+        int hr = regFn(factory, _loaderInstance);
+        _loaderRegistered = hr >= 0;
     }
 
     // --- IDWriteFontCollectionLoader COM callbacks ---
@@ -125,7 +128,7 @@ internal static unsafe class DWritePrivateFontCollection
         }
 
         int key = *(int*)collectionKey;
-        if (!s_registeredFiles.TryGetValue(key, out var files))
+        if (!_registeredFiles.TryGetValue(key, out var files))
         {
             *enumerator = 0;
             return unchecked((int)0x80070057);
@@ -140,30 +143,17 @@ internal static unsafe class DWritePrivateFontCollection
     /// </summary>
     private static class FontFileEnumerator
     {
-        // Per-enumerator state stored in unmanaged memory
-        private struct EnumeratorState
-        {
-            public nint Vtbl;
-            public int RefCount;
-            public int CurrentIndex;  // -1 = before first, 0..N-1 = current, N = past end
-            public int FileCount;
-            public nint Factory;      // IDWriteFactory*, not owned
-            public nint CurrentFile;  // IDWriteFontFile*, owned (released on MoveNext/Release)
-            // File paths stored separately via GCHandle
-            public nint FilePathsHandle;
-        }
-
         private static readonly delegate* unmanaged[Stdcall]<nint, Guid*, nint*, int> _qi = &QI;
         private static readonly delegate* unmanaged[Stdcall]<nint, uint> _addRef = &AddRef;
         private static readonly delegate* unmanaged[Stdcall]<nint, uint> _release = &Release;
         private static readonly delegate* unmanaged[Stdcall]<nint, int*, int> _moveNext = &MoveNext;
         private static readonly delegate* unmanaged[Stdcall]<nint, nint*, int> _getCurrent = &GetCurrentFontFile;
 
-        private static nint s_vtbl;
+        private static nint _vtbl;
 
         public static nint Create(IDWriteFactory* factory, string[] filePaths)
         {
-            if (s_vtbl == 0)
+            if (_vtbl == 0)
             {
                 var vtbl = (nint*)NativeMemory.AllocZeroed(5, (nuint)sizeof(nint));
                 vtbl[0] = (nint)_qi;
@@ -171,11 +161,11 @@ internal static unsafe class DWritePrivateFontCollection
                 vtbl[2] = (nint)_release;
                 vtbl[3] = (nint)_moveNext;
                 vtbl[4] = (nint)_getCurrent;
-                s_vtbl = (nint)vtbl;
+                _vtbl = (nint)vtbl;
             }
 
             var state = (EnumeratorState*)NativeMemory.AllocZeroed(1, (nuint)sizeof(EnumeratorState));
-            state->Vtbl = s_vtbl;
+            state->Vtbl = _vtbl;
             state->RefCount = 1;
             state->CurrentIndex = -1;
             state->FileCount = filePaths.Length;
@@ -281,6 +271,20 @@ internal static unsafe class DWritePrivateFontCollection
 
             *fontFile = state->CurrentFile;
             return 0;
+        }
+
+        // Per-enumerator state stored in unmanaged memory
+        private struct EnumeratorState
+        {
+            public nint Vtbl;
+            public int RefCount;
+            public int CurrentIndex;  // -1 = before first, 0..N-1 = current, N = past end
+            public int FileCount;
+            public nint Factory;      // IDWriteFactory*, not owned
+            public nint CurrentFile;  // IDWriteFontFile*, owned (released on MoveNext/Release)
+
+            // File paths stored separately via GCHandle
+            public nint FilePathsHandle;
         }
     }
 }

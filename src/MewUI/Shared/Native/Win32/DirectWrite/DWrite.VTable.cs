@@ -288,6 +288,74 @@ internal static unsafe class DWriteVTable
             fn(dwriteFont, p);
         }
     }
+
+    /// <summary>IDWriteFont::CreateFontFace (vtable index 13). Caller must Release.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int CreateFontFace(nint dwriteFont, out nint fontFace)
+    {
+        fontFace = 0;
+        nint ff = 0;
+        var vtbl = *(nint**)dwriteFont;
+        var fn = (delegate* unmanaged[Stdcall]<nint, nint*, int>)vtbl[13];
+        int hr = fn(dwriteFont, &ff);
+        fontFace = ff;
+        return hr;
+    }
+
+    /// <summary>IDWriteFontFace::GetGlyphIndices (vtable index 11).</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetGlyphIndices(nint fontFace, uint* codePoints, uint codePointCount, ushort* glyphIndices)
+    {
+        var vtbl = *(nint**)fontFace;
+        var fn = (delegate* unmanaged[Stdcall]<nint, uint*, uint, ushort*, int>)vtbl[11];
+        return fn(fontFace, codePoints, codePointCount, glyphIndices);
+    }
+
+    /// <summary>IDWriteFontFace::GetGlyphRunOutline (vtable index 14).</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetGlyphRunOutline(
+        nint fontFace,
+        float emSize,
+        ushort* glyphIndices,
+        float* glyphAdvances,
+        DWRITE_GLYPH_OFFSET* glyphOffsets,
+        uint glyphCount,
+        int isSideways,
+        int isRightToLeft,
+        nint geometrySink)
+    {
+        var vtbl = *(nint**)fontFace;
+        var fn = (delegate* unmanaged[Stdcall]<nint, float, ushort*, float*, DWRITE_GLYPH_OFFSET*, uint, int, int, nint, int>)vtbl[14];
+        return fn(fontFace, emSize, glyphIndices, glyphAdvances, glyphOffsets, glyphCount, isSideways, isRightToLeft, geometrySink);
+    }
+
+    /// <summary>IDWriteFontFace::GetDesignGlyphMetrics (vtable index 10).</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetDesignGlyphMetrics(nint fontFace, ushort* glyphIndices, uint glyphCount, DWRITE_GLYPH_METRICS* glyphMetrics, int isSideways)
+    {
+        var vtbl = *(nint**)fontFace;
+        var fn = (delegate* unmanaged[Stdcall]<nint, ushort*, uint, DWRITE_GLYPH_METRICS*, int, int>)vtbl[10];
+        return fn(fontFace, glyphIndices, glyphCount, glyphMetrics, isSideways);
+    }
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct DWRITE_GLYPH_OFFSET
+{
+    public float advanceOffset;
+    public float ascenderOffset;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct DWRITE_GLYPH_METRICS
+{
+    public int leftSideBearing;
+    public uint advanceWidth;
+    public int rightSideBearing;
+    public int topSideBearing;
+    public uint advanceHeight;
+    public int bottomSideBearing;
+    public int verticalOriginY;
 }
 
 /// <summary>
