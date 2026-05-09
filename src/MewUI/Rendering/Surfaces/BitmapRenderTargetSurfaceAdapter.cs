@@ -27,6 +27,8 @@ public sealed class BitmapRenderTargetSurfaceAdapter : ICpuPixelSurface, IDeferr
 
     public RenderSurfaceDescriptor Descriptor { get; }
 
+    public IBitmapRenderTarget Target => _target;
+
     public int PixelWidth => _target.PixelWidth;
 
     public int PixelHeight => _target.PixelHeight;
