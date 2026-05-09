@@ -9,13 +9,8 @@ namespace Aprillz.MewUI.Rendering;
 /// Factory interface for creating graphics resources.
 /// Allows different graphics backends to be plugged in.
 /// </summary>
-public interface IGraphicsFactory : IDisposable
+public interface IGraphicsFactory : IRenderDevice, IDisposable
 {
-    /// <summary>
-    /// Identifies which built-in backend this factory represents.
-    /// </summary>
-    GraphicsBackend Backend { get; }
-
     /// <summary>Creates a solid-color brush.</summary>
     /// <remarks>
     /// The default DIM returns a <see cref="SolidColorBrush"/> with no backend resources.
