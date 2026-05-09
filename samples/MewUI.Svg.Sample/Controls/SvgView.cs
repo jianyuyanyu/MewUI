@@ -23,7 +23,7 @@ public sealed class SvgView : FrameworkElement
     private int _cachedPixelWidth;
     private int _cachedPixelHeight;
     private double _cachedDpiScale;
-    private IBitmapRenderTarget? _cachedTarget;
+    private IRenderSurface? _cachedSurface;
     private IImage? _cachedImage;
 
     // Background-rebuild state. _rebuildInProgress is read/written from both UI and
@@ -323,7 +323,7 @@ public sealed class SvgView : FrameworkElement
     /// swallowed (existing cache stays in place).</summary>
     private async Task RebuildAsync(RebuildRequest request)
     {
-        IBitmapRenderTarget? newTarget = null;
+        IRenderSurface? newSurface = null;
         IImage? newImage = null;
         TimeSpan elapsed = TimeSpan.Zero;
         try
@@ -346,14 +346,25 @@ public sealed class SvgView : FrameworkElement
                 // shared filter device. D2D MULTI_THREADED factory permits this from a
                 // worker thread; GDI's HDC operations are HDC-local so concurrent
                 // workers with their own targets don't collide either.
-                var target = factory.CreateOffscreenRenderTarget(request.PixelWidth, request.PixelHeight, request.EffectiveScale);
+                var renderDevice = factory.AsRenderDevice();
+                var surface = renderDevice.CreateSurface(RenderSurfaceDescriptor.CachedImage(
+                    request.PixelWidth,
+                    request.PixelHeight,
+                    request.EffectiveScale,
+                    debugName: "SvgViewCache"));
+                if (surface is not BitmapRenderTargetSurfaceAdapter bitmapSurface)
+                {
+                    surface.Dispose();
+                    throw new NotSupportedException($"{nameof(SvgView)} cache rebuild requires a bitmap-backed render surface.");
+                }
+                var target = bitmapSurface.Target;
                 long tCreateRT = sw.ElapsedTicks;
                 try
                 {
                     target.Clear(Color.Transparent);
                     long tClear = sw.ElapsedTicks;
                     long tBegin, tRender, tEnd;
-                    using (var bmpContext = factory.CreateContext(target))
+                    using (var bmpContext = renderDevice.CreateContext(surface))
                     {
                         long tCtx = sw.ElapsedTicks;
                         bmpContext.BeginFrame(target);
@@ -383,13 +394,13 @@ public sealed class SvgView : FrameworkElement
                             $"total={(tEnd - tStart) * f:F1}ms");
 #endif
                     }
-                    newImage = factory.CreateImageFromPixelSource(target);
-                    newTarget = target;
-                    target = null!;
+                    newImage = renderDevice.CreateImageView(surface);
+                    newSurface = surface;
+                    surface = null!;
                 }
                 finally
                 {
-                    target?.Dispose();
+                    surface?.Dispose();
                 }
                 elapsed = sw.Elapsed;
             }).ConfigureAwait(false);
@@ -399,15 +410,15 @@ public sealed class SvgView : FrameworkElement
             System.Diagnostics.Debug.WriteLine($"[SvgView] RebuildAsync EXCEPTION: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             // Build failed — drop any partial state, leave existing cache untouched.
             newImage?.Dispose();
-            newTarget?.Dispose();
+            newSurface?.Dispose();
             newImage = null;
-            newTarget = null;
+            newSurface = null;
         }
 
         // Marshal to UI thread for the field swap. BeginInvoke (async) is fine —
         // OnRender will pick up the new fields on its next pass after InvalidateVisual.
         var dispatcher = Application.IsRunning ? Application.Current.Dispatcher : null;
-        Action commit = () => CommitRebuild(request, newTarget, newImage, elapsed);
+        Action commit = () => CommitRebuild(request, newSurface, newImage, elapsed);
         if (dispatcher != null && !dispatcher.IsOnUIThread)
         {
             dispatcher.BeginInvoke(commit);
@@ -419,13 +430,13 @@ public sealed class SvgView : FrameworkElement
     }
 
     /// <summary>UI-thread commit: replaces cache fields with the worker-built bitmap.
-    /// Disposes the previous bitmap. If the build was cancelled / failed (newTarget=null)
+    /// Disposes the previous bitmap. If the build was cancelled / failed (newSurface=null)
     /// just clears the in-progress flag without touching the cache.</summary>
-    private void CommitRebuild(RebuildRequest request, IBitmapRenderTarget? newTarget, IImage? newImage, TimeSpan elapsed)
+    private void CommitRebuild(RebuildRequest request, IRenderSurface? newSurface, IImage? newImage, TimeSpan elapsed)
     {
         try
         {
-            if (newTarget is null || newImage is null)
+            if (newSurface is null || newImage is null)
             {
                 return;
             }
@@ -433,7 +444,7 @@ public sealed class SvgView : FrameworkElement
             // Discard previous cache, install the worker-built bitmap.
             ReleaseCache();
             _cachedImage = newImage;
-            _cachedTarget = newTarget;
+            _cachedSurface = newSurface;
             _cachedDocument = request.Document;
             _cachedLocalRect = request.VisibleLocalRect;
             _cachedPixelWidth = request.PixelWidth;
@@ -455,8 +466,8 @@ public sealed class SvgView : FrameworkElement
     {
         _cachedImage?.Dispose();
         _cachedImage = null;
-        _cachedTarget?.Dispose();
-        _cachedTarget = null;
+        _cachedSurface?.Dispose();
+        _cachedSurface = null;
         _cachedDocument = null;
         _cachedLocalRect = Rect.Empty;
         _cachedPixelWidth = 0;
