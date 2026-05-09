@@ -2,7 +2,7 @@ using Aprillz.MewUI.Resources;
 
 namespace Aprillz.MewUI.Rendering;
 
-public interface IRenderDevice : IDisposable
+public interface IRenderDevice
 {
     GraphicsBackend Backend { get; }
 
