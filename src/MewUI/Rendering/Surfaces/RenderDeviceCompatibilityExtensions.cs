@@ -1,7 +1,14 @@
+using System.Runtime.CompilerServices;
+
 namespace Aprillz.MewUI.Rendering;
 
 public static class RenderDeviceCompatibilityExtensions
 {
+    private static readonly ConditionalWeakTable<IGraphicsFactory, IRenderDevice> Devices = new();
+
     public static IRenderDevice AsRenderDevice(this IGraphicsFactory factory)
-        => new GraphicsFactoryRenderDeviceAdapter(factory);
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        return Devices.GetValue(factory, static f => new GraphicsFactoryRenderDeviceAdapter(f));
+    }
 }

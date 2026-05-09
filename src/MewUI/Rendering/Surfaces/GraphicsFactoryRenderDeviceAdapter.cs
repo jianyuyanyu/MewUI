@@ -5,6 +5,7 @@ namespace Aprillz.MewUI.Rendering;
 public sealed class GraphicsFactoryRenderDeviceAdapter : IRenderDevice
 {
     private readonly IGraphicsFactory _factory;
+    private readonly RenderResourceCache _resourceCache = new();
 
     public GraphicsFactoryRenderDeviceAdapter(IGraphicsFactory factory)
     {
@@ -13,7 +14,7 @@ public sealed class GraphicsFactoryRenderDeviceAdapter : IRenderDevice
 
     public GraphicsBackend Backend => _factory.Backend;
 
-    public IRenderResourceCache? ResourceCache => null;
+    public IRenderResourceCache? ResourceCache => _resourceCache;
 
     public IRenderSurface CreateSurface(RenderSurfaceDescriptor descriptor)
     {
@@ -105,6 +106,7 @@ public sealed class GraphicsFactoryRenderDeviceAdapter : IRenderDevice
 
     public void Dispose()
     {
+        _resourceCache.Dispose();
     }
 
     private static bool RequiresCpuBitmap(RenderSurfaceDescriptor descriptor)
