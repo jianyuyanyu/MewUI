@@ -1231,6 +1231,11 @@ static void Startup()
             SampleLog.Write("Registering MewVG Win32 backend.");
             MewVGWin32Backend.Register();
         }
+        if (args.Any(a => a is "--gdi"))
+        {
+            SampleLog.Write("Registering GDI backend.");
+            GdiBackend.Register();
+        }
         else
         {
             SampleLog.Write("Registering Direct2D backend.");
