@@ -2,6 +2,8 @@
   <Folder Name="/build/">
     <File Path="build/Aprillz.MewUI.targets" />
     <File Path="build/Aprillz.MewUI.Windows.targets" />
+    <File Path="build/MewUI.Common.props" />
+    <File Path="build/MewUI.Local.props" />
   </Folder>
   <Folder Name="/draft/">
     <Project Path="src/MewUI.Concept/MewUI.Concept.csproj" />
