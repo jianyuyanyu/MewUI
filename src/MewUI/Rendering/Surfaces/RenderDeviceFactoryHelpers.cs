@@ -4,32 +4,6 @@ namespace Aprillz.MewUI.Rendering;
 
 internal static class RenderDeviceFactoryHelpers
 {
-    public static IGraphicsContext CreateContext(IGraphicsFactory factory, IRenderSurface surface)
-    {
-        ArgumentNullException.ThrowIfNull(factory);
-
-        if (surface is IBitmapRenderTarget bitmapTarget)
-        {
-            return factory.CreateContext(bitmapTarget);
-        }
-
-        throw new NotSupportedException(
-            $"{factory.GetType().Name} can only create contexts for bitmap-backed render surfaces.");
-    }
-
-    public static IImage CreateImageView(IGraphicsFactory factory, IRenderSurface surface)
-    {
-        ArgumentNullException.ThrowIfNull(factory);
-
-        if (surface is IBitmapRenderTarget bitmapTarget)
-        {
-            return factory.CreateImageView((IPixelBufferSource)bitmapTarget);
-        }
-
-        throw new NotSupportedException(
-            $"{factory.GetType().Name} can only create image views for pixel-backed surfaces.");
-    }
-
     public static bool TryReadPixels(IRenderSurface source, Span<byte> destination, int destinationStrideBytes)
     {
         if (source is not ICpuPixelSurface cpuSurface)
