@@ -26,9 +26,10 @@ public sealed class ClosingEventArgs
 /// </summary>
 public partial class Window : ContentControl, ILayoutRoundingHost
 {
+    private static long _nextProfilerSourceId;
+
     private readonly DispatcherMergeKey _layoutMergeKey = new(DispatcherPriority.Layout);
     private readonly DispatcherMergeKey _renderMergeKey = new(DispatcherPriority.Render);
-    private static long s_nextProfilerSourceId;
 
     private enum WindowLifetimeState
     {
@@ -47,7 +48,7 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     private Action? _cachedInvalidateBackend;
     private Action? _cachedLayoutAndRender;
     private LayoutPerformanceStats _lastLayoutPerformanceStats;
-    private readonly long _profilerSourceId = Interlocked.Increment(ref s_nextProfilerSourceId);
+    private readonly long _profilerSourceId = Interlocked.Increment(ref _nextProfilerSourceId);
     private bool _excludeFromProfiler;
 
     /// <summary>
@@ -2043,7 +2044,7 @@ public partial class Window : ContentControl, ILayoutRoundingHost
                     {
                         var adorner = _adorners[i].Element;
 #if DEBUG
-                        if (ReferenceEquals(adorner, _debugPerformanceAdorner))
+                        if (ReferenceEquals(adorner, _performanceAdorner))
                         {
                             continue;
                         }
@@ -2078,12 +2079,12 @@ public partial class Window : ContentControl, ILayoutRoundingHost
                 }
 
 #if DEBUG
-                if (_debugPerformanceAdorner != null)
+                if (_performanceAdorner != null)
                 {
                     phaseStart = frameTiming.Enabled ? Stopwatch.GetTimestamp() : 0;
                     using (frameTiming.Enabled ? ProfilerMarkers.DevToolsRender.Auto() : default)
                     {
-                        _debugPerformanceAdorner.Render(context);
+                        _performanceAdorner.Render(context);
                     }
                     if (frameTiming.Enabled)
                     {

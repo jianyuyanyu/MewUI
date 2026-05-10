@@ -36,7 +36,7 @@ namespace Aprillz.MewUI.Rendering.OpenGL;
 /// </remarks>
 public sealed unsafe class WglDxInteropTexture : IExternalLockedTexture
 {
-    private static readonly object s_sharedDeviceGate = new();
+    private static readonly object _sharedDeviceGate = new();
     private static readonly Dictionary<nint, SharedDeviceHandle> s_sharedDevices = [];
 
     private nint _d3d11Device;
@@ -159,7 +159,7 @@ public sealed unsafe class WglDxInteropTexture : IExternalLockedTexture
 
     private static nint AcquireSharedDeviceHandle(nint d3d11Device)
     {
-        lock (s_sharedDeviceGate)
+        lock (_sharedDeviceGate)
         {
             if (s_sharedDevices.TryGetValue(d3d11Device, out var shared))
             {
@@ -189,7 +189,7 @@ public sealed unsafe class WglDxInteropTexture : IExternalLockedTexture
             return;
         }
 
-        lock (s_sharedDeviceGate)
+        lock (_sharedDeviceGate)
         {
             if (s_sharedDevices.TryGetValue(_d3d11Device, out var shared))
             {

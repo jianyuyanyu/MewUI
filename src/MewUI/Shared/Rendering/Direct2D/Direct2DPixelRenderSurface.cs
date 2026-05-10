@@ -12,6 +12,8 @@ namespace Aprillz.MewUI.Rendering.Direct2D;
 /// </summary>
 internal sealed unsafe class Direct2DPixelRenderSurface : IPixelBufferSource, ICpuPixelSurface, IDeferredCpuReadableSurface, IDisposable, IWin32HdcSource
 {
+    private static int _generationCounter;
+
     private readonly nint _dibSection;
     private readonly nint _oldBitmap;
     private readonly nint _dibBits;
@@ -26,7 +28,6 @@ internal sealed unsafe class Direct2DPixelRenderSurface : IPixelBufferSource, IC
     // dict unboundedly until D2D / GPU memory OOMed).
     private nint _dcRenderTarget;
     private int _dcRenderTargetGeneration;
-    private static int s_generationCounter;
 
     private byte[]? _lockBuffer;
     private Action? _releaseAction;
@@ -274,7 +275,7 @@ internal sealed unsafe class Direct2DPixelRenderSurface : IPixelBufferSource, IC
             throw new InvalidOperationException($"ID2D1DCRenderTarget::BindDC failed: 0x{hr:X8}");
         }
 
-        _dcRenderTargetGeneration = Interlocked.Increment(ref s_generationCounter);
+        _dcRenderTargetGeneration = Interlocked.Increment(ref _generationCounter);
         return (_dcRenderTarget, _dcRenderTargetGeneration);
     }
 

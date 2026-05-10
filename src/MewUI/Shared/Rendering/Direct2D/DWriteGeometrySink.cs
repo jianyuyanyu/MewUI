@@ -14,12 +14,12 @@ namespace Aprillz.MewUI.Rendering.Direct2D;
 internal static unsafe class DWriteGeometrySink
 {
     // ID2D1SimplifiedGeometrySink IID — needed for QueryInterface response.
-    private static readonly Guid s_iidSimplifiedSink = new("2cd9069e-12e2-11dc-9fed-001143a055f9");
-    private static readonly Guid s_iidUnknown = new("00000000-0000-0000-c000-000000000046");
+    private static readonly Guid _iidSimplifiedSink = new("2cd9069e-12e2-11dc-9fed-001143a055f9");
+    private static readonly Guid _iidUnknown = new("00000000-0000-0000-c000-000000000046");
 
     // Single shared vtable for every Sink instance (stateless dispatch — `self` is the
     // first parameter and carries the instance state via the GCHandle slot).
-    private static readonly IntPtr* s_vtable = BuildVtable();
+    private static readonly IntPtr* _vtable = BuildVtable();
 
     /// <summary>Creates a native <c>ID2D1SimplifiedGeometrySink*</c> bound to <paramref name="path"/>.
     /// Outline coords are converted via <c>baseline + (x, -y)</c> so the call site supplies
@@ -32,7 +32,7 @@ internal static unsafe class DWriteGeometrySink
 
         // Layout: [0..7]=vtable_ptr  [8..15]=GCHandle  [16..23]=refcount(int aligned to 8)
         var instance = (Instance*)Marshal.AllocHGlobal(sizeof(Instance));
-        instance->Vtable = s_vtable;
+        instance->Vtable = _vtable;
         instance->Handle = GCHandle.ToIntPtr(handle);
         instance->RefCount = 1;
         return (nint)instance;
@@ -113,7 +113,7 @@ internal static unsafe class DWriteGeometrySink
     private static int QueryInterface(nint self, Guid* riid, nint* ppvObject)
     {
         if (ppvObject == null) return unchecked((int)0x80004003); // E_POINTER
-        if (*riid == s_iidUnknown || *riid == s_iidSimplifiedSink)
+        if (*riid == _iidUnknown || *riid == _iidSimplifiedSink)
         {
             *ppvObject = self;
             // Manually bump refcount — UnmanagedCallersOnly methods can't be called
