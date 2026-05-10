@@ -42,8 +42,8 @@ public sealed class ScratchRenderTargetPool : IDisposable
     }
 
     /// <summary>
-    /// Rents a target with the exact requested pixel dimensions. Same-size requests reuse
-    /// the same bucket; differently-sized requests miss the cache and allocate fresh.
+    /// Rents a scratch surface lease with the exact requested pixel dimensions. Same-size
+    /// requests reuse the same bucket; differently-sized requests miss the cache and allocate fresh.
     /// </summary>
     /// <remarks>
     /// Earlier revision rounded up to power-of-2 to bound bucket count, but that broke
@@ -54,12 +54,6 @@ public sealed class ScratchRenderTargetPool : IDisposable
     /// cost of more cache entries — acceptable, as filter graphs typically reuse a single
     /// size for the duration of the source layer.
     /// </remarks>
-    public IRenderSurface RentSurface(int pixelWidth, int pixelHeight)
-        => RentLease(pixelWidth, pixelHeight).Surface;
-
-    public IBitmapRenderTarget Rent(int pixelWidth, int pixelHeight)
-        => RentLease(pixelWidth, pixelHeight).BitmapTarget;
-
     public ScratchRenderTargetLease RentLease(int pixelWidth, int pixelHeight)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(ScratchRenderTargetPool));
@@ -103,16 +97,6 @@ public sealed class ScratchRenderTargetPool : IDisposable
         surface.Dispose();
         throw new NotSupportedException(
             $"{nameof(ScratchRenderTargetPool)} currently requires bitmap-backed render surfaces.");
-    }
-
-    /// <summary>
-    /// Returns a target to the pool for reuse. If the bucket is at capacity, the target
-    /// is disposed immediately.
-    /// </summary>
-    public void Return(IBitmapRenderTarget target)
-    {
-        if (target is null) return;
-        Return((IRenderSurface)target);
     }
 
     public void Return(IRenderSurface surface)

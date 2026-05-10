@@ -116,20 +116,9 @@ public sealed class ScratchFilterResult : FilterResult, IPixelTargetAccess
     private readonly IRenderSurface _surface;
     private readonly IBitmapRenderTarget _target;
     private readonly IImage _image;
-    private readonly Action<IBitmapRenderTarget>? _release;
-    private readonly ScratchRenderTargetLease? _lease;
+    private readonly ScratchRenderTargetLease _lease;
     private readonly Action<ScratchRenderTargetLease>? _releaseLease;
     private bool _disposed;
-
-    public ScratchFilterResult(IBitmapRenderTarget target, IImage image, Rect bounds,
-        Action<IBitmapRenderTarget>? release)
-    {
-        _target = target ?? throw new ArgumentNullException(nameof(target));
-        _surface = target;
-        _image = image ?? throw new ArgumentNullException(nameof(image));
-        _release = release;
-        Bounds = bounds;
-    }
 
     public ScratchFilterResult(ScratchRenderTargetLease lease, IImage image, Rect bounds,
         Action<ScratchRenderTargetLease>? release)
@@ -160,14 +149,7 @@ public sealed class ScratchFilterResult : FilterResult, IPixelTargetAccess
     {
         if (_disposed) return;
         _disposed = true;
-        if (_lease is not null)
-        {
-            _releaseLease?.Invoke(_lease);
-        }
-        else
-        {
-            _release?.Invoke(_target);
-        }
+        _releaseLease?.Invoke(_lease);
     }
 
     /// <summary>Transfers ownership of the underlying target + image to the caller. After
@@ -177,7 +159,6 @@ public sealed class ScratchFilterResult : FilterResult, IPixelTargetAccess
     public (IRenderSurface Surface, IImage Image)? Detach()
     {
         if (_disposed) return null;
-        if (_lease is null) return null;
         _disposed = true;
         return (_lease.Surface, _image);
     }

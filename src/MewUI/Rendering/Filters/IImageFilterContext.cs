@@ -43,9 +43,9 @@ public interface IImageFilterContext
     double LogicalToPixelScaleY { get; }
 
     /// <summary>
-    /// Rents a scratch <see cref="IBitmapRenderTarget"/> sized at least
-    /// (<paramref name="pixelWidth"/>, <paramref name="pixelHeight"/>) from the pool.
-    /// The returned <see cref="ScratchFilterResult"/> automatically releases the target on
+    /// Rents a scratch render surface sized at least (<paramref name="pixelWidth"/>,
+    /// <paramref name="pixelHeight"/>) from the pool. The returned
+    /// <see cref="ScratchFilterResult"/> automatically releases the surface on
     /// <see cref="FilterResult.Dispose"/>. Callers must render INTO the scratch before
     /// returning it as the node's output.
     /// </summary>
