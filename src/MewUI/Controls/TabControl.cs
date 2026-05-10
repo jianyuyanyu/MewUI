@@ -237,8 +237,24 @@ public sealed class TabControl : Control
             DetachCurrentContent();
             _lastTab = null;
         }
+
+        int oldSelected = SelectedIndex;
         _tabs.RemoveAt(index);
+
+        // Closing the active tab falls back to the previous tab; closing a tab before
+        // the active one shifts the index down so the same TabItem stays selected.
+        int newSelected;
+        if (_tabs.Count == 0)
+            newSelected = -1;
+        else if (index == oldSelected)
+            newSelected = Math.Max(0, index - 1);
+        else if (index < oldSelected)
+            newSelected = oldSelected - 1;
+        else
+            newSelected = oldSelected;
+
         RebuildHeaders();
+        SelectedIndex = newSelected;
         EnsureValidSelection();
         InvalidateMeasure();
         InvalidateVisual();
