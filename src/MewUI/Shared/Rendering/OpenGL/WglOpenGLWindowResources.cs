@@ -18,7 +18,7 @@ internal sealed unsafe class WglOpenGLWindowResources : IOpenGLWindowResources
     public nint Hglrc { get; }
     public bool SupportsBgra { get; }
     public bool SupportsNpotTextures { get; }
-    public OpenGLTextCache TextCache { get; } = new();
+    //public OpenGLTextCache TextCache { get; } = new();
 
     private WglOpenGLWindowResources(
         nint hwnd,
@@ -490,7 +490,7 @@ internal sealed unsafe class WglOpenGLWindowResources : IOpenGLWindowResources
                 GL.DeleteTextures(1, ref t);
             }
             _textures.Clear();
-            TextCache.Dispose();
+            //TextCache.Dispose();
             ReleaseCurrent();
         }
         finally
