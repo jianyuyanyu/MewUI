@@ -30,6 +30,11 @@
     <PackageReference Include="FFmpeg.AutoGen.Bindings.DynamicallyLoaded" Version="8.0.0.1" />
   </ItemGroup>
 
+  <!-- Debug-only: PerformanceCounter has trim / NativeAOT issues. -->
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="9.0.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Include="FFmpeg\download-ffmpeg.ps1" CopyToOutputDirectory="PreserveNewest" />
     <None Include="FFmpeg\bin\x64\*.dll" CopyToOutputDirectory="PreserveNewest" TargetPath="FFmpeg\bin\x64\%(Filename)%(Extension)" />
