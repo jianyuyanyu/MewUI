@@ -902,26 +902,6 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     public event Action? FrameRendered;
 
     /// <summary>
-    /// Occurs when dragged data enters the window.
-    /// </summary>
-    public event Action<DragEventArgs>? DragEnter;
-
-    /// <summary>
-    /// Occurs when dragged data moves over the window.
-    /// </summary>
-    public event Action<DragEventArgs>? DragOver;
-
-    /// <summary>
-    /// Occurs when dragged data leaves the window.
-    /// </summary>
-    public event Action<DragEventArgs>? DragLeave;
-
-    /// <summary>
-    /// Occurs when data is dropped on the window.
-    /// </summary>
-    public event Action<DragEventArgs>? Drop;
-
-    /// <summary>
     /// Gets the rendering statistics from the most recent frame.
     /// </summary>
     public RenderStats LastFrameStats { get; private set; }
@@ -1000,14 +980,6 @@ public partial class Window : ContentControl, ILayoutRoundingHost
 
         Deactivated?.Invoke();
     }
-
-    internal void RaiseDragEnter(DragEventArgs e) => DragEnter?.Invoke(e);
-
-    internal void RaiseDragOver(DragEventArgs e) => DragOver?.Invoke(e);
-
-    internal void RaiseDragLeave(DragEventArgs e) => DragLeave?.Invoke(e);
-
-    internal void RaiseDrop(DragEventArgs e) => Drop?.Invoke(e);
 
     /// <summary>
     /// Shows the window.
@@ -1806,6 +1778,8 @@ public partial class Window : ContentControl, ILayoutRoundingHost
             _backend.SetCanMaximize(false);
         if (PlatformOptions != null)
             _backend.SetPlatformOptions(PlatformOptions);
+        if (AllowDrop)
+            _backend.SetAllowDrop(true);
     }
 
 

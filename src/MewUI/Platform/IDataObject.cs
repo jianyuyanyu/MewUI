@@ -44,14 +44,25 @@ public static class StandardDataFormats
     public const string Text = nameof(Text);
 }
 
-internal sealed class DataObject : IDataObject
+/// <summary>
+/// In-memory <see cref="IDataObject"/> implementation. Stores arbitrary .NET references by format key.
+/// Used by framework-internal drag-and-drop (Phase 1); no OS clipboard format conversion is performed.
+/// </summary>
+public sealed class DataObject : IDataObject
 {
     private readonly Dictionary<string, object> _data;
 
-    public DataObject(Dictionary<string, object> data)
+    public DataObject()
     {
-        _data = data ?? throw new ArgumentNullException(nameof(data));
-        Formats = _data.Keys.ToArray();
+        _data = new Dictionary<string, object>(StringComparer.Ordinal);
+        Formats = new FormatsView(_data);
+    }
+
+    public DataObject(IDictionary<string, object> data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        _data = new Dictionary<string, object>(data, StringComparer.Ordinal);
+        Formats = new FormatsView(_data);
     }
 
     public IReadOnlyList<string> Formats { get; }
@@ -75,4 +86,50 @@ internal sealed class DataObject : IDataObject
 
     public object? GetData(string format)
         => !string.IsNullOrWhiteSpace(format) && _data.TryGetValue(format, out var raw) ? raw : null;
+
+    /// <summary>
+    /// Sets a payload value for the specified format. Overwrites any existing value.
+    /// </summary>
+    public void SetData(string format, object value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
+        ArgumentNullException.ThrowIfNull(value);
+        _data[format] = value;
+    }
+
+    /// <summary>
+    /// Sets plain text under <see cref="StandardDataFormats.Text"/>.
+    /// </summary>
+    public void SetText(string text) => SetData(StandardDataFormats.Text, text ?? string.Empty);
+
+    /// <summary>
+    /// Sets a list of storage item paths under <see cref="StandardDataFormats.StorageItems"/>.
+    /// </summary>
+    public void SetStorageItems(IReadOnlyList<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        SetData(StandardDataFormats.StorageItems, paths);
+    }
+
+    private sealed class FormatsView : IReadOnlyList<string>
+    {
+        private readonly Dictionary<string, object> _data;
+        public FormatsView(Dictionary<string, object> data) => _data = data;
+        public string this[int index]
+        {
+            get
+            {
+                int i = 0;
+                foreach (var key in _data.Keys)
+                {
+                    if (i == index) return key;
+                    i++;
+                }
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+        }
+        public int Count => _data.Count;
+        public IEnumerator<string> GetEnumerator() => _data.Keys.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 }
