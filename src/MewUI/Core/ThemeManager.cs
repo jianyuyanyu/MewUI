@@ -195,6 +195,7 @@ public sealed class ThemeManager
     private Theme? _explicitTheme;
     private bool _explicitThemeSet;
     private Color? _accentOverride;
+    private Accent? _accentEnum;
     private Color? _accentTextOverride;
 
     internal readonly struct ThemeChange
@@ -265,6 +266,7 @@ public sealed class ThemeManager
         _explicitTheme = theme;
         _explicitThemeSet = true;
         _cachedTheme = null;
+        _accentEnum = null;
         _accentOverride = null;
         _accentTextOverride = null;
         Mode = Palette.IsDarkBackground(theme.Palette.WindowBackground) ? ThemeVariant.Dark : ThemeVariant.Light;
@@ -293,8 +295,9 @@ public sealed class ThemeManager
     {
         var oldTheme = CurrentTheme;
 
-        var baseTheme = ResolveBaseThemeForMode(Mode);
-        _accentOverride = BuiltInAccent.GetAccentColor(accent, baseTheme.IsDark);
+        // Remember the enum (not a resolved color) so the light/dark variant re-resolves when the mode changes.
+        _accentEnum = accent;
+        _accentOverride = null;
         _accentTextOverride = accentText;
         _explicitThemeSet = false;
         _explicitTheme = null;
@@ -307,6 +310,7 @@ public sealed class ThemeManager
     {
         var oldTheme = CurrentTheme;
 
+        _accentEnum = null;
         _accentOverride = accent;
         _accentTextOverride = accentText;
         _explicitThemeSet = false;
@@ -338,11 +342,15 @@ public sealed class ThemeManager
     private Theme ResolveThemeFromMode()
     {
         var baseTheme = ResolveBaseThemeForMode(Mode);
-        if (_accentOverride != null)
+        // An enum accent re-resolves to the current mode's variant; a raw color override is used as-is.
+        Color? accent = _accentEnum is Accent accentId
+            ? BuiltInAccent.GetAccentColor(accentId, baseTheme.IsDark)
+            : _accentOverride;
+        if (accent != null)
         {
             return baseTheme with
             {
-                Palette = baseTheme.Palette.WithAccent(_accentOverride.Value, _accentTextOverride)
+                Palette = baseTheme.Palette.WithAccent(accent.Value, _accentTextOverride)
             };
         }
 
