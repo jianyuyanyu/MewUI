@@ -32,42 +32,8 @@ jobs:
           "version=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Pack all packages
-        shell: pwsh
-        run: |
-          $out = Join-Path $env:GITHUB_WORKSPACE ".artifacts/nuget"
-          New-Item -ItemType Directory -Force -Path $out | Out-Null
-
-          $projects = @(
-            # Individual packages
-            "src\MewUI\MewUI.csproj"
-            "src\MewUI.Platform.Win32\MewUI.Platform.Win32.csproj"
-            "src\MewUI.Platform.X11\MewUI.Platform.X11.csproj"
-            "src\MewUI.Platform.MacOS\MewUI.Platform.MacOS.csproj"
-            "src\MewUI.Backend.Direct2D\MewUI.Backend.Direct2D.csproj"
-            "src\MewUI.Backend.Gdi\MewUI.Backend.Gdi.csproj"
-            "src\MewUI.Backend.MewVG.Win32\MewUI.Backend.MewVG.Win32.csproj"
-            "src\MewUI.Backend.MewVG.X11\MewUI.Backend.MewVG.X11.csproj"
-            "src\MewUI.Backend.MewVG.MacOS\MewUI.Backend.MewVG.MacOS.csproj"
-            # Metapackages
-            "meta\MewUI.Windows\MewUI.Windows.csproj"
-            "meta\MewUI.Linux\MewUI.Linux.csproj"
-            "meta\MewUI.MacOS\MewUI.MacOS.csproj"
-            "meta\MewUI.All\MewUI.All.csproj"
-          )
-
-          $failed = @()
-          foreach ($proj in $projects) {
-            Write-Host "Packing $proj ..."
-            dotnet pack $proj -c Release -o $out `
-              /p:ContinuousIntegrationBuild=true `
-              /p:PackageVersion="${{ steps.version.outputs.version }}"
-            if ($LASTEXITCODE -ne 0) { $failed += $proj }
-          }
-
-          if ($failed.Count -gt 0) {
-            Write-Error "Failed to pack: $($failed -join ', ')"
-            exit 1
-          }
+        shell: cmd
+        run: tools\pack\pack_mewui.cmd ${{ steps.version.outputs.version }}
 
       - name: Push to NuGet
         shell: pwsh
