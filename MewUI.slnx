@@ -4,7 +4,7 @@
     <File Path="build/Aprillz.MewUI.Windows.targets" />
     <File Path="build/MewUI.Common.props" />
     <File Path="build/MewUI.Local.props" />
-    <File Path="meta/MewUI.Meta.props" />
+    <File Path="build/MewUI.Meta.props" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/MewDock.Sample/MewDock.Sample.csproj" />
@@ -40,11 +40,6 @@
     <Project Path="extensions/MewUI.Skia.Interop.MewVG.Win32/MewUI.Skia.Interop.MewVG.Win32.csproj" />
     <Project Path="extensions/MewUI.Skia.Interop.MewVG.X11/MewUI.Skia.Interop.MewVG.X11.csproj" />
     <Project Path="extensions/MewUI.Skia.Interop.MewVG.MacOS/MewUI.Skia.Interop.MewVG.MacOS.csproj" />
-  </Folder>
-  <Folder Name="/external/">
-    <Project Path="../MewVG/src/MewVG.Core/MewVG.Core.csproj" />
-    <Project Path="../MewVG/src/MewVG.GL/MewVG.GL.csproj" />
-    <Project Path="../MewVG/src/MewVG.Metal/MewVG.Metal.csproj" />
   </Folder>
   <Folder Name="/meta/">
     <Project Path="meta/MewUI.All/MewUI.All.csproj" />
