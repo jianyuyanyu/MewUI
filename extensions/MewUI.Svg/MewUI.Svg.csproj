@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\..\build\MewUI.Common.props" />
+
+  <PropertyGroup>
+    <AssemblyName>$(MewUITitle).Svg</AssemblyName>
+    <PackageId>$(MewUITitle).Svg</PackageId>
+    <DefineConstants>$(DefineConstants);NO_SDC</DefineConstants>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);CS8632;CS3001;CS3002;CS3003</NoWarn>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <CLSCompliant>false</CLSCompliant>
+    <Description>SVG rendering support for $(MewUITitle). Pure managed implementation via System.Xml.Linq — no System.Drawing dependency, NativeAOT compatible.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+
+  <!-- Keep ThirdParty core logic, but exclude System.Drawing rendering partials for incremental MewUI replacements. -->
+  <ItemGroup>
+    <Compile Remove="ThirdParty\**" />
+    <EmbeddedResource Remove="ThirdParty\**" />
+    <None Remove="ThirdParty\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ExCSS" Version="4.3.1" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <Compile Include="ThirdParty\SvgNet\Source\**\*.cs" Exclude="ThirdParty\SvgNet\Source\**\*.Drawing.cs;ThirdParty\SvgNet\Source\obj\**\*.cs;ThirdParty\SvgNet\Source\bin\**\*.cs" />
+    <Compile Remove="ThirdParty\SvgNet\Source\Painting\GenericBoundable.cs" />
+    <Compile Remove="ThirdParty\SvgNet\Source\Painting\ISvgBoundable.cs" />
+    <Compile Remove="ThirdParty\SvgNet\Source\SvgElementIdManager.cs" />
+    <Compile Remove="ThirdParty\SvgNet\Source\Transforms\ISvgTransformable.cs" />
+    <Compile Remove="ThirdParty\SvgNet\Source\SvgDocument.Win32.cs" />
+
+    <EmbeddedResource Include="ThirdParty\SvgNet\Source\Resources\svg11.dtd">
+      <LogicalName>Svg.Resources.svg11.dtd</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MewUI\MewUI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*.cs" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="ThirdParty\SvgNet\Generators\Svg.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>
