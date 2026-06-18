@@ -25,7 +25,7 @@ Aprillz.MewUI                  ← 올인원 메타패키지 (모든 플랫폼 +
 
 별도 관리 패키지 (메타패키지에 포함되지 않음):
 - `Aprillz.MewUI.Svg` — SVG 파싱/렌더링
-- `Aprillz.MewUI.Win32.WebView2` — WebView2 통합 (Windows 전용)
+- `Aprillz.MewUI.WebView2.Win32` — WebView2 통합 (Windows 전용)
 
 ---
 
@@ -68,7 +68,7 @@ SVG나 WebView2가 필요하면 별도로 추가한다.
 
 ```bash
 dotnet add package Aprillz.MewUI.Svg
-dotnet add package Aprillz.MewUI.Win32.WebView2
+dotnet add package Aprillz.MewUI.WebView2.Win32
 ```
 
 ---
@@ -159,7 +159,7 @@ dotnet publish -r win-x64 -p:MewUIBackend=Direct2D
 | **GDI** | Windows | CPU 기반, 초경량, 최소 의존성 |
 | **MewVG** | Windows, Linux, macOS | NanoVG 기반 Managed 포트. OpenGL(Win32/X11) 또는 Metal(macOS) 사용 |
 
-앱 코드에서의 백엔드 등록은 [Application Lifecycle](ApplicationLifecycle.md)을 참고한다.
+앱 코드에서의 백엔드 등록은 [Application Lifecycle](ApplicationLifecycle.ko.md)을 참고한다.
 
 ---
 
