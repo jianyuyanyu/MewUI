@@ -2527,6 +2527,26 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
         const int GWL_HWNDPARENT = -8;
         User32.SetWindowLongPtr(Handle, GWL_HWNDPARENT, ownerHandle);
+
+        // If the owner is topmost, an owned (non-topmost) window sits in the normal z-order band, which is
+        // entirely below the topmost band, so it would be hidden behind the owner. Match the owner's topmost
+        // state so the owned/dialog window stays above it. Ownership alone does not promote an already-shown
+        // window across bands. (macOS achieves the same by setting the owned level to ownerLevel + 1.)
+        if (ownerHandle != 0)
+        {
+            const int GWL_EXSTYLE = -20;
+            const uint WS_EX_TOPMOST = 0x00000008;
+            const int HWND_TOPMOST = -1;
+            const uint SWP_NOSIZE = 0x0001;
+            const uint SWP_NOMOVE = 0x0002;
+            const uint SWP_NOACTIVATE = 0x0010;
+
+            uint ownerExStyle = (uint)User32.GetWindowLongPtr(ownerHandle, GWL_EXSTYLE).ToInt64();
+            if ((ownerExStyle & WS_EX_TOPMOST) != 0)
+            {
+                User32.SetWindowPos(Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            }
+        }
     }
 
     public void CenterOnOwner()

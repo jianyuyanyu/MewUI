@@ -2443,6 +2443,17 @@ internal sealed class X11WindowBackend : IWindowBackend
                     }
                 }
             }
+
+            // If the owner is kept above others (_NET_WM_STATE_ABOVE, i.e. Topmost), an owned window without it
+            // can be stacked below the owner's "above" layer and hidden behind it. Mirror the owner's ABOVE state
+            // so the owned/dialog window stays above its owner. WM-dependent but never worse than not mirroring.
+            // (Win32 sets HWND_TOPMOST; macOS sets the owned level to ownerLevel + 1 for the same reason.)
+            var wmState = NativeX11.XInternAtom(Display, "_NET_WM_STATE", false);
+            var aboveAtom = NativeX11.XInternAtom(Display, "_NET_WM_STATE_ABOVE", false);
+            if (wmState != 0 && aboveAtom != 0 && ReadAtomProperty(ownerHandle, wmState).Contains(aboveAtom))
+            {
+                SendNetWmState(true, "_NET_WM_STATE_ABOVE");
+            }
         }
         catch
         {

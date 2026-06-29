@@ -654,6 +654,11 @@ internal static unsafe class MacOSWindowInterop
             return 0;
         }
 
+        // initWithContentRect defaults releasedWhenClosed to YES, so -[NSWindow close] would release the window.
+        // We own the +1 from alloc/init and release explicitly via ReleaseWindow on dispose; opt out so close()
+        // does not deallocate it (otherwise the later ReleaseWindow is an over-release → crash).
+        ObjC.MsgSend_void_nint_bool(win, ObjC.Sel("setReleasedWhenClosed:"), false);
+
         SetTitle(win, title);
         if (isDialog || isToolWindow)
         {
