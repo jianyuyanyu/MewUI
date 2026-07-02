@@ -1188,6 +1188,31 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
             return;
         }
 
+        if (hasTextTransform && _pixelSurface != null)
+        {
+            // Transformed text on a per-pixel-alpha cache: the direct GDI path below writes no
+            // alpha, so glyphs end up transparent (reading as the background colour). Render the
+            // rotated text with correct premultiplied alpha instead.
+            var rt = GetTextLayoutRect(drawBounds, wrapping);
+            uint fmt = BuildTextFormat(horizontalAlignment, verticalAlignment, wrapping, trimming);
+            int yOff = 0;
+            int txtH = 0;
+            if (wrapping != TextWrapping.NoWrap)
+            {
+                ComputeWrappedTextOffsetsPx(
+                    text, gdiFont.GetHandle(GdiFontRenderMode.Coverage), rt.Width, rt.Height,
+                    verticalAlignment, out yOff, out txtH);
+            }
+
+            if (PerPixelAlphaTextRenderer.DrawTextTransformed(
+                    Hdc, _pixelSurface, _surfacePool, text, rt, cullR, textTransform, gdiFont, color, fmt,
+                    yOff, txtH, wrapping, trimming, horizontalAlignment, verticalAlignment))
+            {
+                return;
+            }
+            // Oversized bounding box: fall through to the direct GDI path below.
+        }
+
         int textState = 0;
         nint oldFont = 0;
         uint oldColor = 0;
@@ -1347,6 +1372,31 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
                 horizontalAlignment,
                 verticalAlignment);
             return;
+        }
+
+        if (hasTextTransform && _pixelSurface != null)
+        {
+            // Transformed text on a per-pixel-alpha cache: the direct GDI path below writes no
+            // alpha, so glyphs end up transparent (reading as the background colour). Render the
+            // rotated text with correct premultiplied alpha instead.
+            var rt = GetTextLayoutRect(bounds, wrapping);
+            uint fmt = BuildTextFormat(horizontalAlignment, verticalAlignment, wrapping, trimming);
+            int yOff = 0;
+            int txtH = 0;
+            if (wrapping != TextWrapping.NoWrap)
+            {
+                ComputeWrappedTextOffsetsPx(
+                    text, gdiFont.GetHandle(GdiFontRenderMode.Coverage), rt.Width, rt.Height,
+                    verticalAlignment, out yOff, out txtH);
+            }
+
+            if (PerPixelAlphaTextRenderer.DrawTextTransformed(
+                    Hdc, _pixelSurface, _surfacePool, text, rt, cullR, textTransform, gdiFont, color, fmt,
+                    yOff, txtH, wrapping, trimming, horizontalAlignment, verticalAlignment))
+            {
+                return;
+            }
+            // Oversized bounding box: fall through to the direct GDI path below.
         }
 
         int textState = 0;
