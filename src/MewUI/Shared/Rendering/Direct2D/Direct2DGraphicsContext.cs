@@ -1729,24 +1729,25 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
             right: (float)sourceRect.Right,
             bottom: (float)sourceRect.Bottom);
 
-        // When the active target is a DeviceContext (the common case — shared filter DC,
-        // window via QI'd DC), route through the DC-overload of DrawBitmap which accepts
-        // the full D2D1_INTERPOLATION_MODE enum. Default → HIGH_QUALITY_CUBIC: D2D
-        // handles down-sampling on the GPU (no CPU mip pyramid, no per-pixel cost the
-        // caller pays). HIGH_QUALITY_CUBIC over LINEAR is single-digit microseconds for
-        // typical cached-image-sized bitmaps and removes the aliasing seen on zoom-out /
-        // window-shrink where cache pixels > target pixels. Fast keeps NEAREST for the
-        // pan-responsiveness opt-out callers use during interaction.
-        // Honor the context's global alpha so image fades / opacity work (matches the image-brush
-        // path which already multiplies by _globalAlpha).
+        // When the active target is a DeviceContext, use the DrawBitmap overload
+        // that supports the full D2D1_INTERPOLATION_MODE enum.
+        //
+        // Normal/default rendering uses linear interpolation as the general-purpose
+        // balance between image quality and performance. HighQuality uses high-quality
+        // cubic interpolation for improved downscaling, while Fast uses nearest-neighbor
+        // interpolation for interaction paths that prioritize responsiveness.
+        //
+        // Apply the context's global alpha so bitmap rendering is consistent with the
+        // image-brush path, which already multiplies opacity by _globalAlpha.
         float opacity = _globalAlpha;
 
         if (_deviceContext != 0)
         {
             var interpolation = ImageScaleQuality switch
             {
+                ImageScaleQuality.HighQuality => D2D1_INTERPOLATION_MODE.HIGH_QUALITY_CUBIC,
                 ImageScaleQuality.Fast => D2D1_INTERPOLATION_MODE.NEAREST_NEIGHBOR,
-                _ => D2D1_INTERPOLATION_MODE.HIGH_QUALITY_CUBIC,
+                _=> D2D1_INTERPOLATION_MODE.LINEAR,
             };
             D2D1VTable.DrawBitmap(
                 (ID2D1DeviceContext*)_deviceContext,
