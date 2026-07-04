@@ -628,7 +628,7 @@ internal static unsafe class MacOSWindowInterop
         else if (isToolWindow)
         {
             // Floating tool/utility window: an NSPanel with the utility-window mask (thin title bar, floats
-            // above the app). Close button only — no miniaturizable. MewUIPanel subclass so the panel can
+            // above the app). Close button only - no miniaturizable. MewUIPanel subclass so the panel can
             // become key for text input. (UtilityWindow=1<<4 only takes effect on NSPanel, not NSWindow.)
             EnsureMewUIPanelClass();
             windowClass = ClsMewUIPanel != 0 ? ClsMewUIPanel : (ClsNSPanel != 0 ? ClsNSPanel : ClsNSWindow);
@@ -1185,7 +1185,7 @@ internal static unsafe class MacOSWindowInterop
 
             MacOSWindowBackend.ImeNativeLogger.Write($"objc insertText:replacementRange: view=0x{self:x} textObj=0x{text:x} repl=({replacementRange.location},{replacementRange.length}) imeHasMarked={backend.ImeHasMarkedText}");
             var s = MacOSInterop.GetUtf8TextFromNSStringOrAttributedString(text);
-            MacOSWindowBackend.ImeNativeLogger.Write($"  -> text len={(s?.Length ?? -1)} '{MacOSWindowBackend.TruncateForImeLog(s)}'");
+            MacOSWindowBackend.ImeNativeLogger.Write($" -> text len={(s?.Length ?? -1)} '{MacOSWindowBackend.TruncateForImeLog(s)}'");
             backend.ImeInsertText(s, replacementRange);
         }
         catch
@@ -1205,7 +1205,7 @@ internal static unsafe class MacOSWindowInterop
 
             MacOSWindowBackend.ImeNativeLogger.Write($"objc insertText: (legacy) view=0x{self:x} textObj=0x{text:x} imeHasMarked={backend.ImeHasMarkedText}");
             var s = MacOSInterop.GetUtf8TextFromNSStringOrAttributedString(text);
-            MacOSWindowBackend.ImeNativeLogger.Write($"  -> text len={(s?.Length ?? -1)} '{MacOSWindowBackend.TruncateForImeLog(s)}'");
+            MacOSWindowBackend.ImeNativeLogger.Write($" -> text len={(s?.Length ?? -1)} '{MacOSWindowBackend.TruncateForImeLog(s)}'");
             backend.ImeInsertText(s);
         }
         catch
@@ -1225,7 +1225,7 @@ internal static unsafe class MacOSWindowInterop
 
             MacOSWindowBackend.ImeNativeLogger.Write($"objc setMarkedText:selectedRange:replacementRange: view=0x{self:x} textObj=0x{text:x} sel=({selectedRange.location},{selectedRange.length}) repl=({replacementRange.location},{replacementRange.length}) imeHasMarked={backend.ImeHasMarkedText}");
             var s = MacOSInterop.GetUtf8TextFromNSStringOrAttributedString(text) ?? string.Empty;
-            MacOSWindowBackend.ImeNativeLogger.Write($"  -> marked len={s.Length} '{MacOSWindowBackend.TruncateForImeLog(s)}'");
+            MacOSWindowBackend.ImeNativeLogger.Write($" -> marked len={s.Length} '{MacOSWindowBackend.TruncateForImeLog(s)}'");
             backend.ImeSetMarkedText(s, replacementRange);
         }
         catch
@@ -1245,7 +1245,7 @@ internal static unsafe class MacOSWindowInterop
 
             MacOSWindowBackend.ImeNativeLogger.Write($"objc setMarkedText:selectedRange: (legacy) view=0x{self:x} textObj=0x{text:x} sel=({selectedRange.location},{selectedRange.length}) imeHasMarked={backend.ImeHasMarkedText}");
             var s = MacOSInterop.GetUtf8TextFromNSStringOrAttributedString(text) ?? string.Empty;
-            MacOSWindowBackend.ImeNativeLogger.Write($"  -> marked len={s.Length} '{MacOSWindowBackend.TruncateForImeLog(s)}'");
+            MacOSWindowBackend.ImeNativeLogger.Write($" -> marked len={s.Length} '{MacOSWindowBackend.TruncateForImeLog(s)}'");
             backend.ImeSetMarkedText(s);
         }
         catch
@@ -1444,7 +1444,7 @@ internal static unsafe class MacOSWindowInterop
             }
 
             string slice = len == 0 ? string.Empty : text.Substring((int)start, (int)len);
-            MacOSWindowBackend.ImeNativeLogger.Write($"  -> sliceStart={start} sliceLen={len} '{MacOSWindowBackend.TruncateForImeLog(slice)}'");
+            MacOSWindowBackend.ImeNativeLogger.Write($" -> sliceStart={start} sliceLen={len} '{MacOSWindowBackend.TruncateForImeLog(slice)}'");
             nint nsString = ObjC.CreateNSString(slice);
             if (nsString == 0)
             {
@@ -1462,7 +1462,7 @@ internal static unsafe class MacOSWindowInterop
 
             nint attr = ObjC.MsgSend_nint(clsAttr, selAlloc);
             attr = attr != 0 ? ObjC.MsgSend_nint_nint(attr, selInitWithString, nsString) : 0;
-            MacOSWindowBackend.ImeNativeLogger.Write($"  -> returning NSAttributedString 0x{attr:x}");
+            MacOSWindowBackend.ImeNativeLogger.Write($" -> returning NSAttributedString 0x{attr:x}");
             return attr;
         }
         catch

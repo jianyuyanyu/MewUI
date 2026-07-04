@@ -142,7 +142,7 @@ public class NativeCustomWindow : Window
         _leftArea = new StackPanel { Orientation = Orientation.Horizontal };
         _rightArea = new StackPanel { Orientation = Orientation.Horizontal };
 
-        // Title bar — uses AlphaTextPanel to enable alpha-correct text rendering
+        // Title bar - uses AlphaTextPanel to enable alpha-correct text rendering
         // in the DWM-extended title bar region (GDI backend).
         var titleBarContent = new DockPanel().Children(
             new Border().DockRight().Child(_controlButtons),

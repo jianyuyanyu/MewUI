@@ -98,15 +98,13 @@ public class CustomWindow : Window
         StyleSheet.Define("close", CloseButtonStyle);
 
         // Title text
-        var titleText = new TextBlock
-        {
-            IsHitTestVisible = false,
-            FontWeight = FontWeight.SemiBold,
-            FontSize = 13,
-            Margin = new Thickness(8, 0),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
+        var titleText = new TextBlock()
+            .IsHitTestVisible(false)
+            .FontWeight(FontWeight.SemiBold)
+            .FontSize(13)
+            .Margin(new Thickness(8, 0))
+            .HorizontalAlignment(HorizontalAlignment.Center)
+            .VerticalAlignment(VerticalAlignment.Center);
         titleText.SetBinding(TextBlock.TextProperty, this, TitleProperty);
         _titleText = titleText;
 

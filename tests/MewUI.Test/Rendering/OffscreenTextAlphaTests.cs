@@ -176,7 +176,7 @@ public sealed class OffscreenTextAlphaTests
             Console.WriteLine($"[real TextBlock] maxAlpha={maxAlpha}, peak BGRA=({peakB},{peakG},{peakR},{maxAlpha})  {(looksWhite ? "WHITE(color lost!)" : "DARK(correct)")}");
             Assert.IsTrue(maxAlpha > 16, $"TextBlock produced no visible coverage (maxAlpha={maxAlpha}).");
             Assert.IsFalse(looksWhite,
-                $"Real TextBlock text rendered WHITE into offscreen surface (peak RGB={peakR},{peakG},{peakB}) — " +
+                $"Real TextBlock text rendered WHITE into offscreen surface (peak RGB={peakR},{peakG},{peakB}) - " +
                 "foreground color lost. Reproduces the CacheMode white-text bug.");
         }
         finally
@@ -256,7 +256,7 @@ public sealed class OffscreenTextAlphaTests
             Console.WriteLine($"[opaque window proxy @dpi{dpi}] darkest pixel BGRA=({darkB},{darkG},{darkR}) luma={minLuma}  " +
                 $"{(minLuma < 128 ? "DARK text present(correct)" : "NO dark text → white/invisible(BUG)")}");
             Assert.IsTrue(minLuma < 128,
-                $"After blitting the cache onto an opaque white target, no dark text pixels exist (min luma={minLuma}) — " +
+                $"After blitting the cache onto an opaque white target, no dark text pixels exist (min luma={minLuma}) - " +
                 "text turned white/invisible. Reproduces the CacheMode bug.");
         }
         finally
@@ -329,7 +329,7 @@ public sealed class OffscreenTextAlphaTests
             Console.WriteLine($"[CacheMode nested e2e] darkest BGRA=({darkB},{darkG},{darkR}) luma={minLuma}  " +
                 $"{(minLuma < 128 ? "DARK(correct)" : "WHITE/invisible(BUG REPRODUCED)")}");
             Assert.IsTrue(minLuma < 128,
-                $"Cached TextBlock rendered with nested frame produced no dark text (min luma={minLuma}) — bug reproduced.");
+                $"Cached TextBlock rendered with nested frame produced no dark text (min luma={minLuma}) - bug reproduced.");
         }
         finally
         {

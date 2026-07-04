@@ -1392,7 +1392,6 @@ public static class ControlExtensions
         return textBox;
     }
 
-
     /// <summary>
     /// Sets the caret position.
     /// </summary>

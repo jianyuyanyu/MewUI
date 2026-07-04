@@ -160,7 +160,7 @@ public static class DefaultStyles
         {
             Setters =
             [
-                // Foreground inherited from Window style — not set here.
+                // Foreground inherited from Window style - not set here.
                 // Disabled Foreground is handled by individual control styles, not here,
                 // to avoid propagating DisabledText to child TextBlocks via inheritance.
                 Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
@@ -410,7 +410,7 @@ public static class DefaultStyles
 
     private static Style CreateSliderStyle()
     {
-        // No triggers — thumb uses PickAccentBorder with its own thumbState (includes _isDragging).
+        // No triggers - thumb uses PickAccentBorder with its own thumbState (includes _isDragging).
         return new Style(typeof(Slider))
         {
             Transitions = SliderColorTransitions,

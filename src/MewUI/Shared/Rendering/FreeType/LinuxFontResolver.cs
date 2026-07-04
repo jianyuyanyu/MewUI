@@ -39,7 +39,7 @@ internal static class LinuxFontResolver
             return fcPath;
         }
 
-        // Secondary fontconfig: requested family unavailable — try generic
+        // Secondary fontconfig: requested family unavailable - try generic
         // "sans-serif" so the system's configured sans default kicks in.
         if (!string.Equals(family, "sans-serif", StringComparison.OrdinalIgnoreCase))
         {
@@ -165,7 +165,7 @@ internal static class LinuxFontResolver
         }
         catch
         {
-            // Fontconfig call failed — fall through to heuristic.
+            // Fontconfig call failed - fall through to heuristic.
         }
 
         return null;
@@ -253,7 +253,7 @@ internal static class LinuxFontResolver
 
         bool bold = weight >= FontWeight.SemiBold;
 
-        // Styled variants first — the unstyled name matches the regular weight file.
+        // Styled variants first - the unstyled name matches the regular weight file.
         if (bold && italic)
         {
             yield return normalized + "-BoldOblique";
@@ -271,7 +271,7 @@ internal static class LinuxFontResolver
             yield return normalized + "-Italic";
         }
 
-        // Regular (unstyled) last — fallback.
+        // Regular (unstyled) last - fallback.
         yield return normalized;
     }
 

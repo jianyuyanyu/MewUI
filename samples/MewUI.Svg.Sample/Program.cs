@@ -53,7 +53,7 @@ var root = new Window()
         )
         .OnLoaded(() =>
         {
-            // Bind here (not at StatusBar() construction) — vectorPreview's `out` slot is
+            // Bind here (not at StatusBar() construction) - vectorPreview's `out` slot is
             // populated only after Body() runs, which happens after StatusBar() in arg order.
             drawTimeLabel.Bind(Label.TextProperty, vectorPreview, SvgView.LastDrawTimeProperty,
                 ts => ts == TimeSpan.Zero ? string.Empty : $"Draw: {ts.GetText()}");
@@ -133,7 +133,7 @@ Element IconsView()
         }
         stopwatch.Stop();
 
-        header = $"icons.zip — {sources.Count} icons (ZIP entry -> SvgImageSource), virtualized WrapPresenter | parse {stopwatch.ElapsedMilliseconds} ms";
+        header = $"icons.zip - {sources.Count} icons (ZIP entry -> SvgImageSource), virtualized WrapPresenter | parse {stopwatch.ElapsedMilliseconds} ms";
     }
     else
     {
@@ -205,7 +205,7 @@ static Dictionary<string, string> LoadIconColors(ZipArchive archive)
     }
     catch
     {
-        // No color metadata — icons render untinted.
+        // No color metadata - icons render untinted.
     }
 
     return map;
@@ -544,18 +544,18 @@ static void Startup()
 #pragma warning disable CA1416
     Win32Platform.Register();
 
-    if (args.Any(a => a is "--gdi"))
-    {
-        GdiBackend.Register();
-    }
-    else if (args.Any(a => a is "--vg"))
-    {
-        MewVGWin32Backend.Register();
-    }
-    else
-    {
+    //if (args.Any(a => a is "--gdi"))
+    //{
+    //    GdiBackend.Register();
+    //}
+    //else if (args.Any(a => a is "--vg"))
+    //{
+    //    MewVGWin32Backend.Register();
+    //}
+    //else
+    //{
         Direct2DBackend.Register();
-    }
+    //}
 #pragma warning restore CA1416
 #elif MEWUI_GALLERY_OSX
     MacOSPlatform.Register();

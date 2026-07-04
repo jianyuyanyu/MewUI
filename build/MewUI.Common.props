@@ -13,7 +13,7 @@
     <MewVGVersion>0.5.5</MewVGVersion>
   </PropertyGroup>
 
-  <!-- Local development override (gitignored) — MewVGProjectPath, etc. -->
+  <!-- Local development override (gitignored) - MewVGProjectPath, etc. -->
   <Import Project="MewUI.Local.props" Condition="Exists('MewUI.Local.props')" />
 
   <PropertyGroup>

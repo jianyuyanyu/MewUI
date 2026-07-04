@@ -48,7 +48,7 @@ internal sealed class TabHeaderButton : ContentControl
 
     /// <summary>
     /// Called when the header is clicked (tab selection request).
-    /// Single-owner callback — no multicast, no cleanup needed.
+    /// Single-owner callback - no multicast, no cleanup needed.
     /// </summary>
     internal Action<int>? ClickedCallback { get; set; }
 
@@ -106,8 +106,8 @@ internal sealed class TabHeaderButton : ContentControl
             return null;
         }
 
-        // If the click landed on (or inside) any focusable descendant — close button, checkbox,
-        // slider, etc. — let that control own the click. Non-focusable hits (Label, Glyph, empty
+        // If the click landed on (or inside) any focusable descendant - close button, checkbox,
+        // slider, etc. - let that control own the click. Non-focusable hits (Label, Glyph, empty
         // space) fall through to the header itself as the tab-select surface.
         var hit = base.OnHitTest(point);
         if (hit == null)
