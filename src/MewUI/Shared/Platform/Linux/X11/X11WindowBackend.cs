@@ -120,6 +120,11 @@ internal sealed class X11WindowBackend : IWindowBackend
         ApplyResolvedStartupPosition();
 
         _shown = true;
+        if (Window.Owner is { Handle: not 0 } owner)
+        {
+            SetOwner(owner.Handle);
+        }
+
         NativeX11.XMapWindow(Display, Handle);
 
         if (Window.IsOverlayWindow)
@@ -658,7 +663,8 @@ internal sealed class X11WindowBackend : IWindowBackend
 
         ApplyOpacity();
         ApplyResizeMode();
-        ApplyToolWindowHints();
+        ApplyMotifHints();
+        ApplyWindowTypeHints();
 
         _inputMethod = X11InputMethodFactory.Create(Display, Handle);
         if (_inputMethod is XimInputMethod xim && xim.TryGetFilterEvents(out var imeFilterEvents))
@@ -2443,17 +2449,6 @@ internal sealed class X11WindowBackend : IWindowBackend
                     }
                 }
             }
-
-            // If the owner is kept above others (_NET_WM_STATE_ABOVE, i.e. Topmost), an owned window without it
-            // can be stacked below the owner's "above" layer and hidden behind it. Mirror the owner's ABOVE state
-            // so the owned/dialog window stays above its owner. WM-dependent but never worse than not mirroring.
-            // (Win32 sets HWND_TOPMOST; macOS sets the owned level to ownerLevel + 1 for the same reason.)
-            var wmState = NativeX11.XInternAtom(Display, "_NET_WM_STATE", false);
-            var aboveAtom = NativeX11.XInternAtom(Display, "_NET_WM_STATE_ABOVE", false);
-            if (wmState != 0 && aboveAtom != 0 && ReadAtomProperty(ownerHandle, wmState).Contains(aboveAtom))
-            {
-                SendNetWmState(true, "_NET_WM_STATE_ABOVE");
-            }
         }
         catch
         {
@@ -2465,9 +2460,9 @@ internal sealed class X11WindowBackend : IWindowBackend
     // skip-taskbar. Set as properties before the window is mapped (a _NET_WM_STATE ClientMessage only applies
     // once the WM manages the window). Owner/transient is set separately via SetOwner. Best-effort — WMs vary
     // in utility-type support, degrading to a normal (skip-taskbar) window. Mutually exclusive with transparency.
-    private void ApplyToolWindowHints()
+    private void ApplyWindowTypeHints()
     {
-        if (Display == 0 || Handle == 0 || !Window.IsToolWindow || _allowsTransparency)
+        if (Display == 0 || Handle == 0 || _allowsTransparency)
         {
             return;
         }
@@ -2475,24 +2470,31 @@ internal sealed class X11WindowBackend : IWindowBackend
         try
         {
             var windowType = NativeX11.XInternAtom(Display, "_NET_WM_WINDOW_TYPE", false);
-            var windowTypeUtility = NativeX11.XInternAtom(Display, "_NET_WM_WINDOW_TYPE_UTILITY", false);
-            if (windowType != 0 && windowTypeUtility != 0)
+            var windowTypeValue = Window.IsDialogWindow
+                ? NativeX11.XInternAtom(Display, "_NET_WM_WINDOW_TYPE_DIALOG", false)
+                : Window.IsToolWindow
+                    ? NativeX11.XInternAtom(Display, "_NET_WM_WINDOW_TYPE_UTILITY", false)
+                    : 0;
+            if (windowType != 0 && windowTypeValue != 0)
             {
                 unsafe
                 {
-                    nint data = windowTypeUtility;
+                    nint data = windowTypeValue;
                     NativeX11.XChangeProperty(Display, Handle, windowType, type: 4 /*ATOM*/, format: 32, mode: 0 /*Replace*/, (nint)(&data), nelements: 1);
                 }
             }
 
-            var netWmState = NativeX11.XInternAtom(Display, "_NET_WM_STATE", false);
-            var skipTaskbar = NativeX11.XInternAtom(Display, "_NET_WM_STATE_SKIP_TASKBAR", false);
-            if (netWmState != 0 && skipTaskbar != 0)
+            if (Window.IsToolWindow)
             {
-                unsafe
+                var netWmState = NativeX11.XInternAtom(Display, "_NET_WM_STATE", false);
+                var skipTaskbar = NativeX11.XInternAtom(Display, "_NET_WM_STATE_SKIP_TASKBAR", false);
+                if (netWmState != 0 && skipTaskbar != 0)
                 {
-                    nint data = skipTaskbar;
-                    NativeX11.XChangeProperty(Display, Handle, netWmState, type: 4 /*ATOM*/, format: 32, mode: 0 /*Replace*/, (nint)(&data), nelements: 1);
+                    unsafe
+                    {
+                        nint data = skipTaskbar;
+                        NativeX11.XChangeProperty(Display, Handle, netWmState, type: 4 /*ATOM*/, format: 32, mode: 0 /*Replace*/, (nint)(&data), nelements: 1);
+                    }
                 }
             }
         }
