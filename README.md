@@ -14,6 +14,30 @@
 
 ---
 
+<div align="center">
+
+🎗️ <b>In loving memory of my beloved cat and companion, April. Forever in my heart.</b>
+<p align="center">
+<img width="1280" height="560" alt="Untitled-2 (2)" src="https://github.com/user-attachments/assets/8b3bfa9e-714d-439c-9f2b-7b2fb5a9794d" />
+  
+</p>
+
+`2012.04.15 – 2026.06.20`
+
+<p align="center">
+  사랑하는 사월아, 내 곁에 와줘서 고마워. 너와 함께한 모든 순간이 행복했단다.<br>
+  꼭 다시 만나자. 내 보물 송사월.
+</p>
+
+<p align="center">
+  My beloved April, thank you for coming into my life, and I was always so happy.<br>
+  We will surely meet again. My treasure, April.
+</p>
+
+</div>
+
+---
+
 **😺 MewUI** is a cross-platform, lightweight, code-first .NET GUI framework for building and shipping NativeAOT/Trim-friendly desktop apps without requiring a separate .NET runtime installation.
 
 > [!NOTE]
@@ -79,7 +103,7 @@ https://github.com/user-attachments/assets/fc2d6ad8-3317-4784-a6e5-a00c68e9ed3b
     #:property OutputType=Exe
     #:property TargetFramework=net10.0
 
-    #:package Aprillz.MewUI@0.10.3
+    #:package Aprillz.MewUI
 
     // ...
     ```
