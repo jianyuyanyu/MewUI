@@ -8,7 +8,6 @@ namespace Aprillz.MewUI.Controls;
 /// </summary>
 public abstract partial class UIElement : Element
 {
-
     private bool _suggestedIsEnabled = true;
     private bool _suggestedIsEnabledInitialized;
     private bool _visualStateDirty;
