@@ -470,12 +470,36 @@ internal sealed class X11WindowBackend : IWindowBackend
 
     public void CaptureMouse()
     {
-        // TODO: XGrabPointer
+        if (Display == 0 || Handle == 0)
+        {
+            return;
+        }
+
+        // owner_events=true keeps normal in-window delivery; the grab only redirects motion/release
+        // that would otherwise leave the window, so drags keep flowing through HandleMotion/HandleButton.
+        const long ButtonMotionMask = 1L << 13;
+        const int GrabModeAsync = 1;
+        uint grabMask = (uint)(X11EventMask.ButtonReleaseMask | X11EventMask.PointerMotionMask | ButtonMotionMask);
+        _ = NativeX11.XGrabPointer(
+            Display, Handle,
+            ownerEvents: true,
+            grabMask,
+            GrabModeAsync, GrabModeAsync,
+            confineTo: 0,
+            cursor: 0,
+            time: 0); // CurrentTime
+        NativeX11.XFlush(Display);
     }
 
     public void ReleaseMouseCapture()
     {
-        // TODO: XUngrabPointer
+        if (Display == 0)
+        {
+            return;
+        }
+
+        NativeX11.XUngrabPointer(Display, 0); // CurrentTime
+        NativeX11.XFlush(Display);
     }
 
     public Point ClientToScreen(Point clientPointDip)
@@ -985,7 +1009,9 @@ internal sealed class X11WindowBackend : IWindowBackend
         int smallPx = Math.Max(16, (int)Math.Round(16 * dpiScale));
         int bigPx = Math.Max(32, (int)Math.Round(32 * dpiScale));
 
-        var payload = new List<uint>(capacity: 16);
+        // Xlib expects format-32 client data as one C long per element (8 bytes on LP64), so each
+        // 32-bit CARDINAL rides in its own nint slot; nelements stays the logical 32-bit value count.
+        var payload = new List<nint>(capacity: 16);
         AppendNetWmIconPayload(payload, _icon, smallPx);
         if (bigPx != smallPx)
         {
@@ -1000,7 +1026,7 @@ internal sealed class X11WindowBackend : IWindowBackend
         }
 
         var data = payload.ToArray();
-        fixed (uint* p = data)
+        fixed (nint* dataPtr = data)
         {
             NativeX11.XChangeProperty(
                 display: Display,
@@ -1009,7 +1035,7 @@ internal sealed class X11WindowBackend : IWindowBackend
                 type: cardinalAtom,
                 format: 32,
                 mode: 0, // PropModeReplace
-                data: (nint)p,
+                data: (nint)dataPtr,
                 nelements: data.Length);
         }
 
@@ -1049,7 +1075,7 @@ internal sealed class X11WindowBackend : IWindowBackend
         NativeX11.XFlush(Display);
     }
 
-    private static void AppendNetWmIconPayload(List<uint> dst, IconSource icon, int desiredSizePx)
+    private static void AppendNetWmIconPayload(List<nint> dst, IconSource icon, int desiredSizePx)
     {
         var src = icon.Pick(desiredSizePx);
         if (src == null)
@@ -1064,8 +1090,8 @@ internal sealed class X11WindowBackend : IWindowBackend
 
         int w = Math.Max(1, bmp.WidthPx);
         int h = Math.Max(1, bmp.HeightPx);
-        dst.Add((uint)w);
-        dst.Add((uint)h);
+        dst.Add(w);
+        dst.Add(h);
 
         var pixels = bmp.Data;
         int idx = 0;
@@ -1076,7 +1102,7 @@ internal sealed class X11WindowBackend : IWindowBackend
             byte g = pixels[idx++];
             byte r = pixels[idx++];
             byte a = pixels[idx++];
-            dst.Add(((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | b);
+            dst.Add(unchecked((nint)(((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | b)));
         }
     }
 
