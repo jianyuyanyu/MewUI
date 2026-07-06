@@ -109,6 +109,7 @@ https://github.com/user-attachments/assets/fc2d6ad8-3317-4784-a6e5-a00c68e9ed3b
     ```
 
 - Run: `dotnet run your_app.cs`
+
 ---
 ## 🧪 C# Markup at a Glance
 
@@ -179,7 +180,11 @@ NativeAOT executable size depends on the platform host, rendering backend, resou
 | Gallery | Linux x64 / X11 + MewVG | 7.420 MB | 3.518 MB |
 | Gallery | macOS arm64 / MewVG | 5.625 MB | 2.555 MB |
 
+<img src="https://github.com/user-attachments/assets/92dae0e7-6ecb-46f8-b405-2fcab629375b" />
+
+
 The Gallery is a full-featured showcase sample. Use the Hello World rows as the minimum deployment-size baseline.
+
 ---
 ## 🔗 State & Binding (AOT-friendly)
 
@@ -284,6 +289,7 @@ Backends are registered by the referenced backend packages (Trim/AOT-friendly). 
 - use the builder chain: `Application.Create().Use...().Run(...)`
 
 When using a metapackage (e.g., `Aprillz.MewUI.Windows`), you can select a single backend at publish time with `-p:MewUIBackend=Direct2D`. See [Installation & Packages](docs/Installation.md) for details.
+
 ---
 ## 🪟 Platform Abstraction
 
