@@ -25,6 +25,11 @@ public abstract class DropDownBase : Control, IPopupOwner
         MewProperty<double>.Register<DropDownBase>(nameof(MaxDropDownHeight), 240.0, MewPropertyOptions.AffectsLayout,
             static (self, oldValue, newValue) => self.OnMaxDropDownHeightChanged(oldValue, newValue));
 
+    static DropDownBase()
+    {
+        FocusableProperty.OverrideDefaultValue<DropDownBase>(true);
+    }
+
     /// <summary>
     /// Gets or sets whether the popup is open.
     /// </summary>
@@ -59,11 +64,6 @@ public abstract class DropDownBase : Control, IPopupOwner
         get => GetValue(MaxDropDownHeightProperty);
         set => SetValue(MaxDropDownHeightProperty, value);
     }
-
-    /// <summary>
-    /// Gets whether the control can receive keyboard focus.
-    /// </summary>
-    public override bool Focusable => true;
 
     internal override void OnAccessKey() { Focus(); IsDropDownOpen = true; }
 

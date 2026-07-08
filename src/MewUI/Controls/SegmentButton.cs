@@ -67,9 +67,6 @@ public sealed class SegmentButton : ContentControl
     /// </summary>
     internal Action<int>? ClickedCallback { get; set; }
 
-    // Keyboard navigation lives on the container; segments stay out of the Tab order.
-    public override bool Focusable => false;
-
     private void RefreshVisualState()
     {
         EnsureStyleResolved();

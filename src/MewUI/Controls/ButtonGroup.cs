@@ -15,4 +15,11 @@ public sealed class ButtonGroup : SegmentedBase
     {
         ItemPadding = new Thickness(12, 6);
     }
+
+    // Independent command buttons: each segment is its own Tab stop (toolbar), unlike
+    // SegmentedControl where the container owns focus and selection.
+    protected override void OnSegmentCreated(SegmentButton button)
+    {
+        button.Focusable = true;
+    }
 }
