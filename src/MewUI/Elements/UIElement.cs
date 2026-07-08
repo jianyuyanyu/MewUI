@@ -789,6 +789,19 @@ public abstract partial class UIElement : Element
 
     #endregion
 
+    internal override void OnDetaching(Element? oldRoot)
+    {
+        base.OnDetaching(oldRoot);
+
+        // Keep the single-focus invariant: a focused element leaving the tree would otherwise strand
+        // FocusManager.FocusedElement on a detached element (stale IsFocused / focus border). Release it
+        // here, while still attached, so focus-within unwinds up the retained ancestor chain.
+        if ((IsFocused || IsFocusWithin) && oldRoot is Window window)
+        {
+            window.FocusManager.ClearFocus();
+        }
+    }
+
     protected override void OnVisualRootChanged(Element? oldRoot, Element? newRoot)
     {
         base.OnVisualRootChanged(oldRoot, newRoot);

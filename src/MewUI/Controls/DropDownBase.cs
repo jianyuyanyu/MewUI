@@ -322,15 +322,8 @@ public abstract class DropDownBase : Control, IPopupOwner
 
         if (oldRoot is Window oldWindow && newRoot is not Window)
         {
-            // Lifecycle-close should not restore focus to this control (it may be leaving the tree).
-            // If focus currently lives inside the popup subtree, clear it to avoid leaving focus
-            // pointing at a soon-to-be-detached element.
-            var focused = oldWindow.FocusManager.FocusedElement;
-            if (focused != null && (ReferenceEquals(focused, _popup) || VisualTree.IsInSubtreeOf(focused, _popup)))
-            {
-                oldWindow.FocusManager.ClearFocus();
-            }
-
+            // Closing the popup detaches it, and that detach releases any focus inside it (the framework
+            // clears focus on detach), so lifecycle-close does not strand focus on this leaving control.
             oldWindow.ClosePopup(_popup, PopupCloseKind.Lifecycle);
         }
     }
