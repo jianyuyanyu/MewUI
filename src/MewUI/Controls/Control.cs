@@ -295,15 +295,15 @@ public abstract class Control : FrameworkElement
     }
 
     /// <summary>
-    /// Forces the next <see cref="OnRender"/> pass to snap style values immediately
-    /// instead of animating from the cached <see cref="_visualState"/>.
-    /// Used when a virtualization-pinned container re-enters the visible range
-    /// and its cached visual state may be stale (e.g. still has Focused/Active
-    /// flags from when it was off-screen).
+    /// Queues a visual-state reconciliation that re-applies style values even when the state
+    /// flags compare equal, snapping instead of animating. Used when a virtualization-pinned
+    /// container re-enters the visible range after a rebind: its cached visual state may be
+    /// stale, and animating from the previous item's visuals would cross-fade between items.
     /// </summary>
     internal void ForceStyleSnap()
     {
         _forceApplyStyle = true;
+        InvalidateVisualState();
     }
 
     internal void SetStyle(Style? style, bool snap = true)
@@ -410,9 +410,10 @@ public abstract class Control : FrameworkElement
 
         if (newState != oldState || _forceApplyStyle)
         {
-            // _forceApplyStyle (style just set/changed, re-attachment, theme change) always snaps:
-            // these are hard resets, not interactive transitions. Otherwise the caller chooses -
-            // the visual-state drain snaps for offscreen elements, animates for on-screen.
+            // _forceApplyStyle (virtualization rebind via ForceStyleSnap) always snaps: a recycled
+            // container must re-apply even with equal flags and must not animate from the previous
+            // item's visuals. Otherwise the caller chooses - the visual-state drain snaps for
+            // offscreen elements, animates for on-screen.
             bool effectiveSnap = snap || _forceApplyStyle;
             _forceApplyStyle = false;
             _visualState = newState;
